@@ -26,13 +26,12 @@
 // APIs for basic functionality
 
 /**
- * lightSenor_init() - Initialize the lightSensor peripheral driver.  This function waits until
- * the n3eif self test is done then it sets the rotary encoder mode and clears the
- * rotary encoder count.  The LCD display is cleared on exit
+ * lightSenor_init() - Initialize the lightSensor peripheral driver.  This function 
+ * ADD DESCRIPTION HERE
  *
  * @param	BaseAddress is the base address in memory mapped I/O space for the peripheral
  *
  * @return	XST_SUCCESS
  *
  */
-XStatus N3EIF_init(u32 BaseAddress);
+XStatus lightSenor_init(u32 BaseAddress);
