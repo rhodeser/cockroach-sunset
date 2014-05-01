@@ -13,6 +13,8 @@
 #include "xbasic_types.h"
 #include "xstatus.h"
 #include "xil_io.h"
+#include "stdbool.h"
+#include "math.h"
 
 /************************** Constant Definitions ***************************/
 
@@ -192,20 +194,19 @@ XStatus LIGHTSENSOR_Stop(u32 BaseAddress);
  * @param BaseAddress is the base address of the LIGHTSENSOR instance to be worked on
  * @param slope
  * @param offset
- *
- * If slope and offset are set, return scaled count [0:4095]
- * Else return actual count
+ * @param boolean is_scaled:
+ * 			If is_scaled == true, return scaled count [0:4095]
+ * 			Else return actual count
  *
  * @return
  * 		- period count
  *
  */
-Xuint32 LIGHTSENSOR_Capture(u32 BaseAddress, Xuint32 slope, Xuint32 offset);
+Xuint32 LIGHTSENSOR_Capture(u32 BaseAddress, double slope, Xuint32 offset, bool is_scaled);
 
 /**
  * LIGHTSENSOR_SetScaling() - Sets the slope and offset values for scaling.
  * 
- * @param BaseAddress is the base address of the LIGHTSENSOR instance to be worked on
  * @param min count
  * @param max count
  * @param pointer to slope
@@ -216,19 +217,18 @@ Xuint32 LIGHTSENSOR_Capture(u32 BaseAddress, Xuint32 slope, Xuint32 offset);
  *    - XST_FAILURE   if failed
  *
  */
-XStatus LIGHTSENSOR_SetScaling(u32 BaseAddress, Xuint32 minCount, Xuint32 maxCount, Xuint32 *slope, Xuint32 *offset);
+XStatus LIGHTSENSOR_SetScaling(Xuint32 minCount, Xuint32 maxCount, double *slope, Xuint32 *offset);
 
 /**
  * LIGHTSENSOR_Count2Volts() - Converts the actual 'count' measurements to a scaled
  * voltage output.
  * 
- * @param BaseAddress is the base address of the LIGHTSENSOR instance to be worked on
  * @param scaledCount scaled to the range [0:4095]
  *
  * @return
  *    - voltage
  *
  */
-Xuint32 LIGHTSENSOR_Count2Volts(u32 BaseAddress, Xuint32 scaledCount);
+double LIGHTSENSOR_Count2Volts(Xuint32 scaledCount);
 
 #endif /** LIGHTSENSOR_H */
