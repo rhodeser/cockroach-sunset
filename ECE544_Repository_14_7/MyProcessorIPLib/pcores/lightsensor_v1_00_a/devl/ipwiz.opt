@@ -1,0 +1,9 @@
+-batch 
+-create lightsensor 
+-ver 1.00.a 
+-dir "C:\Users\Caren\Dropbox\PSU\ECE544\Projects\ECE544_Repository_14_7\MyProcessorIPLib" 
+-lang verilog 
+-bus plbv46 s 
+-reg 6 
+-xps 
+-driver 

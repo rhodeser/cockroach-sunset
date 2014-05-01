@@ -1,0 +1,15 @@
+##############################################################################
+## Filename:          C:\Users\Caren\Dropbox\PSU\ECE544\Projects\ECE544_Repository_14_7\MyProcessorIPLib/drivers/lightsensor_v1_00_a/data/lightsensor_v2_1_0.mdd
+## Description:       Microprocessor Driver Definition
+## Date:              Wed Apr 30 11:34:36 2014 (by Create and Import Peripheral Wizard)
+##############################################################################
+
+OPTION psf_version = 2.1.0;
+
+BEGIN DRIVER lightsensor
+
+  OPTION supported_peripherals = (lightsensor);
+  OPTION depends = (common_v1_00_a);
+  OPTION copyfiles = all;
+
+END DRIVER
