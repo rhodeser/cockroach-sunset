@@ -18,21 +18,21 @@
 
 
 /**
- * User Logic Slave Space Offsets
- * -- SLV_REG0 : user logic slave module register 0
- * -- SLV_REG1 : user logic slave module register 1
- * -- SLV_REG2 : user logic slave module register 2
- * -- SLV_REG3 : user logic slave module register 3
- * -- SLV_REG4 : user logic slave module register 4
- * -- SLV_REG5 : user logic slave module register 5
+ * LightSensor Interface Register Offsets
+ * -- CONTROL	: Enable the PWM detection (bit0)		(O)
+ * -- STATUS	: Periferal controller status (bit0)	(I)
+ * -- HIGH_TIME	: Detected High Time Count				(I)
+ * -- PERIOD	: Detected Period Count					(I)
+ * -- SPAREREG1	: Spare register **RESERVED**			(I)
+ * -- SPAREREG2	: Spare register **RESERVED**			(I)
  */
 #define LIGHTSENSOR_USER_SLV_SPACE_OFFSET (0x00000000)
-#define LIGHTSENSOR_SLV_REG0_OFFSET (LIGHTSENSOR_USER_SLV_SPACE_OFFSET + 0x00000000)
-#define LIGHTSENSOR_SLV_REG1_OFFSET (LIGHTSENSOR_USER_SLV_SPACE_OFFSET + 0x00000004)
-#define LIGHTSENSOR_SLV_REG2_OFFSET (LIGHTSENSOR_USER_SLV_SPACE_OFFSET + 0x00000008)
-#define LIGHTSENSOR_SLV_REG3_OFFSET (LIGHTSENSOR_USER_SLV_SPACE_OFFSET + 0x0000000C)
-#define LIGHTSENSOR_SLV_REG4_OFFSET (LIGHTSENSOR_USER_SLV_SPACE_OFFSET + 0x00000010)
-#define LIGHTSENSOR_SLV_REG5_OFFSET (LIGHTSENSOR_USER_SLV_SPACE_OFFSET + 0x00000014)
+#define LIGHTSENSOR_CONTROL_OFFSET (LIGHTSENSOR_USER_SLV_SPACE_OFFSET + 0x00000000)
+#define LIGHTSENSOR_STATUS_OFFSET (LIGHTSENSOR_USER_SLV_SPACE_OFFSET + 0x00000004)
+#define LIGHTSENSOR_HIGH_TIME_OFFSET (LIGHTSENSOR_USER_SLV_SPACE_OFFSET + 0x00000008)
+#define LIGHTSENSOR_PERIOD_OFFSET (LIGHTSENSOR_USER_SLV_SPACE_OFFSET + 0x0000000C)
+#define LIGHTSENSOR_SPAREREG1_OFFSET (LIGHTSENSOR_USER_SLV_SPACE_OFFSET + 0x00000010)
+#define LIGHTSENSOR_SPAREREG2_OFFSET (LIGHTSENSOR_USER_SLV_SPACE_OFFSET + 0x00000014)
 
 /**************************** Type Definitions *****************************/
 
@@ -96,34 +96,33 @@
  * 	Xuint32 LIGHTSENSOR_mReadSlaveRegn(Xuint32 BaseAddress, unsigned RegOffset)
  *
  */
-#define LIGHTSENSOR_mWriteSlaveReg0(BaseAddress, RegOffset, Value) \
- 	Xil_Out32((BaseAddress) + (LIGHTSENSOR_SLV_REG0_OFFSET) + (RegOffset), (Xuint32)(Value))
-#define LIGHTSENSOR_mWriteSlaveReg1(BaseAddress, RegOffset, Value) \
- 	Xil_Out32((BaseAddress) + (LIGHTSENSOR_SLV_REG1_OFFSET) + (RegOffset), (Xuint32)(Value))
-#define LIGHTSENSOR_mWriteSlaveReg2(BaseAddress, RegOffset, Value) \
- 	Xil_Out32((BaseAddress) + (LIGHTSENSOR_SLV_REG2_OFFSET) + (RegOffset), (Xuint32)(Value))
-#define LIGHTSENSOR_mWriteSlaveReg3(BaseAddress, RegOffset, Value) \
- 	Xil_Out32((BaseAddress) + (LIGHTSENSOR_SLV_REG3_OFFSET) + (RegOffset), (Xuint32)(Value))
-#define LIGHTSENSOR_mWriteSlaveReg4(BaseAddress, RegOffset, Value) \
- 	Xil_Out32((BaseAddress) + (LIGHTSENSOR_SLV_REG4_OFFSET) + (RegOffset), (Xuint32)(Value))
-#define LIGHTSENSOR_mWriteSlaveReg5(BaseAddress, RegOffset, Value) \
- 	Xil_Out32((BaseAddress) + (LIGHTSENSOR_SLV_REG5_OFFSET) + (RegOffset), (Xuint32)(Value))
+#define LIGHTSENSOR_mWriteCONTROL(BaseAddress, Value) \
+ 	Xil_Out32((BaseAddress) + (LIGHTSENSOR_CONTROL_OFFSET) , (Xuint32)(Value))
+#define LIGHTSENSOR_mWriteSTATUS(BaseAddress, Value) \
+ 	Xil_Out32((BaseAddress) + (LIGHTSENSOR_STATUS_OFFSET) , (Xuint32)(Value))
+#define LIGHTSENSOR_mWriteHIGH_TIME(BaseAddress, Value) \
+ 	Xil_Out32((BaseAddress) + (LIGHTSENSOR_HIGH_TIME_OFFSET) , (Xuint32)(Value))
+#define LIGHTSENSOR_mWritePERIOD(BaseAddress, Value) \
+ 	Xil_Out32((BaseAddress) + (LIGHTSENSOR_PERIOD_OFFSET) , (Xuint32)(Value))
+#define LIGHTSENSOR_mWriteSPAREREG1(BaseAddress, Value) \
+ 	Xil_Out32((BaseAddress) + (LIGHTSENSOR_SPAREREG1_OFFSET) , (Xuint32)(Value))
+#define LIGHTSENSOR_mWriteSPAREREG2(BaseAddress, Value) \
+ 	Xil_Out32((BaseAddress) + (LIGHTSENSOR_SPAREREG2_OFFSET) , (Xuint32)(Value))
 
-#define LIGHTSENSOR_mReadSlaveReg0(BaseAddress, RegOffset) \
- 	Xil_In32((BaseAddress) + (LIGHTSENSOR_SLV_REG0_OFFSET) + (RegOffset))
-#define LIGHTSENSOR_mReadSlaveReg1(BaseAddress, RegOffset) \
- 	Xil_In32((BaseAddress) + (LIGHTSENSOR_SLV_REG1_OFFSET) + (RegOffset))
-#define LIGHTSENSOR_mReadSlaveReg2(BaseAddress, RegOffset) \
- 	Xil_In32((BaseAddress) + (LIGHTSENSOR_SLV_REG2_OFFSET) + (RegOffset))
-#define LIGHTSENSOR_mReadSlaveReg3(BaseAddress, RegOffset) \
- 	Xil_In32((BaseAddress) + (LIGHTSENSOR_SLV_REG3_OFFSET) + (RegOffset))
-#define LIGHTSENSOR_mReadSlaveReg4(BaseAddress, RegOffset) \
- 	Xil_In32((BaseAddress) + (LIGHTSENSOR_SLV_REG4_OFFSET) + (RegOffset))
-#define LIGHTSENSOR_mReadSlaveReg5(BaseAddress, RegOffset) \
- 	Xil_In32((BaseAddress) + (LIGHTSENSOR_SLV_REG5_OFFSET) + (RegOffset))
+#define LIGHTSENSOR_mReadCONTROL(BaseAddress) \
+ 	Xil_In32((BaseAddress) + (LIGHTSENSOR_CONTROL_OFFSET) )
+#define LIGHTSENSOR_mReadSTATUS(BaseAddress) \
+ 	Xil_In32((BaseAddress) + (LIGHTSENSOR_STATUS_OFFSET) )
+#define LIGHTSENSOR_mReadHIGH_TIME(BaseAddress) \
+ 	Xil_In32((BaseAddress) + (LIGHTSENSOR_HIGH_TIME_OFFSET) )
+#define LIGHTSENSOR_mReadPERIOD(BaseAddress) \
+ 	Xil_In32((BaseAddress) + (LIGHTSENSOR_PERIOD_OFFSET) )
+#define LIGHTSENSOR_mReadSPAREREG1(BaseAddress) \
+ 	Xil_In32((BaseAddress) + (LIGHTSENSOR_SPAREREG1_OFFSET) )
+#define LIGHTSENSOR_mReadSPAREREG2(BaseAddress) \
+ 	Xil_In32((BaseAddress) + (LIGHTSENSOR_SPAREREG2_OFFSET) )
 
 /************************** Function Prototypes ****************************/
-
 
 /**
  *
@@ -144,6 +143,92 @@
  * @note    Self test may fail if data memory and device are not on the same bus.
  *
  */
-XStatus LIGHTSENSOR_SelfTest(void * baseaddr_p);
+XStatus LIGHTSENSOR_SelfTest(u32 baseaddr_p);
+
+/**
+ * LIGHTSENSOR_Init() - Initialize the lightsensor periferal driver
+ * This function waits until the light sensor self test is done then it sets
+ * the control enable bit to 0.
+ * 
+ * @param BaseAddress is the base address of the LIGHTSENSOR instance to be worked on
+ *
+ * @return
+ *    - XST_SUCCESS   if all self-test code passed
+ *    - XST_FAILURE   if any self-test code failed
+ *
+ */
+XStatus LIGHTSENSOR_Init(u32 BaseAddress);
+
+
+/**
+ * LIGHTSENSOR_Start() - Starts the PWM detection in the periferal
+ * This function sets the Control Enable bit to 1
+ * 
+ * @param BaseAddress is the base address of the LIGHTSENSOR instance to be worked on
+ *
+ * @return
+ *    - XST_SUCCESS   if passed
+ *    - XST_FAILURE   if failed
+ *
+ */
+XStatus LIGHTSENSOR_Start(u32 BaseAddress);
+
+/**
+ * LIGHTSENSOR_Stop() - Stops the PWM detection in the periferal
+ * This function sets the Control Enable bit to 0
+ * 
+ * @param BaseAddress is the base address of the LIGHTSENSOR instance to be worked on
+ *
+ * @return
+ *    - XST_SUCCESS   if passed
+ *    - XST_FAILURE   if failed
+ *
+ */
+XStatus LIGHTSENSOR_Stop(u32 BaseAddress);
+
+/**
+ * LIGHTSENSOR_Capture() - This function returns the period count by reading the PERIOD register
+ * 
+ * @param BaseAddress is the base address of the LIGHTSENSOR instance to be worked on
+ * @param slope
+ * @param offset
+ *
+ * If slope and offset are set, return scaled count [0:4095]
+ * Else return actual count
+ *
+ * @return
+ * 		- period count
+ *
+ */
+Xuint32 LIGHTSENSOR_Capture(u32 BaseAddress, Xuint32 slope, Xuint32 offset);
+
+/**
+ * LIGHTSENSOR_SetScaling() - Sets the slope and offset values for scaling.
+ * 
+ * @param BaseAddress is the base address of the LIGHTSENSOR instance to be worked on
+ * @param min count
+ * @param max count
+ * @param pointer to slope
+ * @param pointer to offset
+ *
+ * @return
+ *    - XST_SUCCESS   if passed
+ *    - XST_FAILURE   if failed
+ *
+ */
+XStatus LIGHTSENSOR_SetScaling(u32 BaseAddress, Xuint32 minCount, Xuint32 maxCount, Xuint32 *slope, Xuint32 *offset);
+
+/**
+ * LIGHTSENSOR_Count2Volts() - Converts the actual 'count' measurements to a scaled
+ * voltage output.
+ * 
+ * @param BaseAddress is the base address of the LIGHTSENSOR instance to be worked on
+ * @param scaledCount scaled to the range [0:4095]
+ *
+ * @return
+ *    - voltage
+ *
+ */
+Xuint32 LIGHTSENSOR_Count2Volts(u32 BaseAddress, Xuint32 scaledCount);
 
 #endif /** LIGHTSENSOR_H */
