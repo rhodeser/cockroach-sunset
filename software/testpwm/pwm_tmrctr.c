@@ -1,18 +1,19 @@
 /*****
  * pwm_tmrctr.c - PWM API for Xilinx timer/counter (tmrctr)
  *
- * Copyright Roy Kravitz, 2009, 2010
+ * Copyright Roy Kravitz, 2009-2013, 2014, 2015
  *
  * 
  * Author:	Roy Kravitz
- * Version:	1.1
- * Date:	16-April-2013
+ * Version:	1.2
+ * Date:	29-March-2014
  *
  * Revision History
  * ================
  * 05-Jan-09	RK		Created the first version
  * 16-Apr-13	RK		No changes in this file but changed pwm_tmrctr.h to take the bus
  *						frequency from xparameters.h instead of hardwiring it to 50MHz.
+ *29-Mar-14		RK		Minor edits.  No functional changes.
  *
  *
  * Description:
@@ -226,12 +227,12 @@ XStatus PWM_SetParams(XTmrCtr *InstancePtr, Xuint32 freq, Xuint32 dutyfactor)
     }
     	   
     // calculate the PWM period and high time
-	periphbus_clock_period = 1.0 / (float) PERIPHBUS_CLOCK_FREQ_HZ;
+	plb_clock_period = 1.0 / (float) PLB_CLOCK_FREQ_HZ;
 	pwm_period = 1.0 / freq;
-	tlr0 = (pwm_period / periphbus_clock_period) - 2;
+	tlr0 = (pwm_period / plb_clock_period) - 2;
 	
 	pwm_dc = dutyfactor / 100.00;
-	tlr1 = ((pwm_period * pwm_dc) / periphbus_clock_period) - 2;
+	tlr1 = ((pwm_period * pwm_dc) / plb_clock_period) - 2;
 	if (tlr1 < 0)   // duty cycle cannot be less than 0%
 	{
 		tlr1 = 0.0;
@@ -278,9 +279,9 @@ XStatus PWM_SetParams(XTmrCtr *InstancePtr, Xuint32 freq, Xuint32 dutyfactor)
 * @note
 *
 * Formulas for calculating counts (PWM counters are configured as down counters):
-*		PERIPHBUS_CLOCK_PERIOD = 1 / PERIPHBUS_CLOCK_FREQ_HZ
-*		PWM_PERIOD = (TLR0 + 2) x (1 / PERIPHBUS_CLOCK_PERIOD)
-*		PWM_HIGH_TIME = (TLR1 + 2) x (1 / PERIPHBUS_CLOCK_PERIOD)
+*		PLB_CLOCK_PERIOD = 1 / PLB_CLOCK_FREQ
+*		PWM_PERIOD = (TLR0 + 2) x (1 / PLB_CLOCK_FREQ)
+*		PWM_HIGH_TIME = (TLR1 + 2) x (1 / PLB_CLOCK_FREQ)
 *
 ******************************************************************************/
 XStatus PWM_GetParams(XTmrCtr *InstancePtr, Xuint32 *freq, Xuint32 *dutyfactor)
@@ -310,7 +311,7 @@ XStatus PWM_GetParams(XTmrCtr *InstancePtr, Xuint32 *freq, Xuint32 *dutyfactor)
  	tlr1 = (float) tlr;  	   
 
     // calculate the PWM period and high time
-	plb_clock_period = 1.0 / PERIPHBUS_CLOCK_FREQ_HZ;
+	plb_clock_period = 1.0 / PLB_CLOCK_FREQ_HZ;
 	pwm_period = (tlr0 + 2) * plb_clock_period;
 	pwm_dc = tlr1 / tlr0;
 	
