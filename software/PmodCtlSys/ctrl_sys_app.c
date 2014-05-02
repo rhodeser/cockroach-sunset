@@ -1,13 +1,12 @@
 /*****
- * test_PmodCtlSys_r3.c - Test Program for Control System Circuit used in Project 2
- *
- * Copyright Roy Kravitz, 2013, 2014
- *
  * 
- * Author:			Roy Kravitz
- * Modified by:		Robin Marshall
- * Version:			3.0
- * Date:			24-Apr-2014
+ * ECE544 Project 2
+ * Erik Rhodes
+ * Test Program for Control System Circuit used in Project 2
+ * 5/5/14
+ *  
+ *  Modified by Erik Rhodes and Caren Zgheib.  Original version by Roy Kravitz, with modifications
+ *  from Robin Marshall
  *
  * Revision History
  * ================
@@ -63,8 +62,8 @@
 #include "pwm_tmrctr.h"
 #include "mb_interface.h"
 
-//ECE544 Students: 
-//#include "YOUR_PERIPHERAL_DRIVER.h"
+// light sensor peripheral driver 
+#include "lightsensor.h"
 
 /************************** Macros and Constants ******************************/
 // Microblaze Cache Parameters
@@ -118,18 +117,19 @@
 #define NUM_FRQ_SAMPLES			250	
 #define MIN_DUTY                        1
 #define MAX_DUTY                        99 
-#define CONTROL_OFFSET                  200
-#define CONTROL_GAIN                    10 
-#define INTL_GAIN                       
-#define DERIV_GAIN
-#define PROP_GAIN
 #define USE_INTEGRAL                    1
 #define USE_DERIV                       1
-#define OFFSET_INCREMENT
-#define PROP_INIT_OFFSET                
+#define OFFSET_INCREMENT                5
+//TODO Define parameters
+#define PROP_INIT_OFFSET                 
 #define INT_INIT_OFFSET                
 #define DERIV_INIT_OFFSET                
-		
+#define	VOLT_MAX                        3.3	
+#define	VOLT_MIN                        0.1	
+#define SETPOINT_SCALE                  40.96
+#define BTN_NORTH_MSK    
+#define BTN_EAST_MSK
+#define BTN_WEST_MSK
 // macro functions
 #define MIN(a, b)  ( ((a) <= (b)) ? (a) : (b) )
 #define MAX(a, b)  ( ((a) >= (b)) ? (a) : (b) )
@@ -175,6 +175,8 @@ int						pwm_duty;					// PWM duty cycle
 // Add whatever global variables you need to use your Light Sensor peripheral driver
 double  setpoint;
 double  prop_offset, integral_offset, deriv_offset;
+double  scale;
+Xuint32 offset;
 //enum for control selection
 Control_t PID_current_sel;
 				
@@ -269,7 +271,6 @@ int main()
 	{ 
 		// read sw[1:0] to get the test to perform.
 		NX3_readBtnSw(&btnsw);
-                //TODO: change to correct switch logic
 		test = btnsw & (msk_SWITCH1 | msk_SWITCH0);
 			
 		if (test == TEST_T_CALLS)  // Reserved for something special.  Prepare to be awesome. 
@@ -291,17 +292,17 @@ int main()
 			if (rotcnt != old_rotcnt)
 			{
 				pwm_duty = MAX(STEPDC_MIN, MIN(rotcnt, STEPDC_MAX));
-                                //TODO change function name
-                                setpoint = count_to_volts(pwm_duty);
+                                //scale rotary count to setpoint values
+                                setpoint = MAX(VOLT_MIN, MIN(rotcnt/SETPOINT_SCALE, VOLT_MAX));
 				old_rotcnt = rotcnt;
 			}
 			DoTest_Track();
                         // next test should be?
 			next_test = TEST_BANG;
-		}   // Test 0 = Track PWM voltage
+		} 
 
 
-		else if ((test == TEST_BANG ) || (test == TEST_PID))  // Test 1 & 2 - Step response 
+		else if ((test == TEST_BANG ) || (test == TEST_PID))  // Test 1 & 2 - control methods Bang Bang and PID 
 		{
 			Xfloat32	v;
 			char		s[20];	
@@ -473,8 +474,8 @@ int main()
 					count = sample[smpl_idx];
 					
                                         //Convert from count to 'volts'
-                                        //NOTE: incompatible types
-                                        v = LIGHTSENSOR_Count2Volts(count); 
+                                        //NOTE: different types (Xuint32)
+                                        v = LIGHTSENSOR_Count2Volts((Xuint32) count); 
 					
 					voltstostrng(v, s);
 					xil_printf("%d\t%d\t%s\n\r", smpl_idx, count, s);
@@ -530,21 +531,20 @@ int main()
 **************************************************************************************/
 
 
-// TODO: resolution for set point should be based off .1 volts-ish
 // TODO: make define masks for BTN_NORTH, ...
 
 void set_PID_vals()
 {
 
     // Set which control measurement we're using
-    if (btnsw & BTN_NORTH)
+    if (btnsw & BTN_NORTH_MSK)
         {
         // increment to the next selection.  If we're at the last enum, set it to the 1st (proportional)
         if (PID_current_sel == DERIVATIVE) PID_current_sel = PROPORTIONAL; 
         else PID_current_sel++;
         }
        
-    if (btnsw & BTN_WEST)
+    if (btnsw & BTN_WEST_MSK)
     {
         // TODO make more compact
         // offset[select] += OFFSET_INCREMENT;
@@ -552,7 +552,7 @@ void set_PID_vals()
        else if (PID_current_sel == INTEGRAL)    integral_offset += OFFSET_INCREMENT;
        else if (PID_current_sel == DERIVATIVE)  deriv_offset    += OFFSET_INCREMENT;
     }
-    if (btnsw & BTN_EAST)
+    if (btnsw & BTN_EAST_MSK)
     {
         //make more compact
        if (PID_current_sel == PROPORTIONAL)     prop_offset     -= OFFSET_INCREMENT;
@@ -562,44 +562,7 @@ void set_PID_vals()
 
 // TODO: update_lcd(...);
 // void update_lcd(int vin_dccnt, short frqcnt)
-
 }
-
-double duty_to_volts()
-{
-// want to change values more than 1 at a time or else would be too slow
-    //readROT_count get what back as rotcnt?
-rotcnt/MAX_ROT_CNT = volts/MAX_VOLTS;
-
-}
-void calc_prop()
-{
-    double frq_cnt;
-    u16 volt_out;
-    double setpoint;
-
-    delay_msecs(1);
-    // get count from light sensor and convert to voltage 
-    frq_cnt = read_light_sensor();
-
-    // TODO change these 2 functs to correct names
-    volt_out = count_to_volts(frq_cnt);
-
-    // Control offset is gotten from characterization
-    volt_out = CONTROL_OFFSET + (setpoint - volt_out) * CONTROL_GAIN;
-
-    // establish bounds
-    if (volt_out < MIN_DUTY) volt_out = MIN_DUTY;
-    if (volt_out > MAX_DUTY) volt_out = MAX_DUTY;
-
-    // output voltage to PWM
-    Status = PWM_SetParams(&PWMTimerInst, pwm_freq, volt_out);
-    if (Status == XST_SUCCESS)
-    {							
-        PWM_Start(&PWMTimerInst);
-    }
-}
-
 
 /*************************************************************************************
  * The calc_bang function performs one of the control methods for the PWM output.
@@ -611,14 +574,14 @@ void calc_prop()
 
 void calc_bang()
 {
-    double frq_cnt;
-    u16 volt_out;
+    double counts;
+    double volt_out;
 
     delay_msecs(1);
 
     // get count from light sensor and convert to voltage 
-    frq_cnt = read_light_sensor();
-    volt_out = count_to_volts(frq_cnt);
+    counts = LIGHTSENSOR_Capture(BaseAddress, slope, offset, 1);
+    volt_out = LIGHTSENSOR_Count2Volts(counts);
 
     if (volt_out < setpoint)
     {
@@ -639,6 +602,46 @@ void calc_bang()
 }
 
 
+/*************************************************************************************
+ * This method calculates the voltage that should be output to the PWM peripheral.  
+ * It takes the reading from the light sensor, scales it appropriately, calculates
+ * the proportional value, converts to duty and outputs the value to the PWM params.
+**************************************************************************************/
+    
+void calc_prop()
+{
+    double counts;
+    u16 duty_out;
+    double volt_out;
+
+    delay_msecs(1);
+    // get count from light sensor and convert to voltage 
+    counts = LIGHTSENSOR_Capture(BaseAddress, slope, offset, 1);
+    
+    // TODO NOTE: count should be double in LIGHTSENSOR_COUNT
+    volt_out = LIGHTSENSOR_Count2Volts(counts);
+
+    // Control offset is gotten from characterization
+    volt_out = offset + (setpoint - volt_out) * slope;
+
+    // Convert volts to duty_cycle
+    // implicit conversion
+    duty_out = (volt_out)* (MAX_DUTY+1)/VOLT_MAX;
+
+    // establish bounds
+    if (duty_out < MIN_DUTY) duty_out = MIN_DUTY;
+    if (duty_out > MAX_DUTY) duty_out = MAX_DUTY;
+
+    // output voltage to PWM
+    Status = PWM_SetParams(&PWMTimerInst, pwm_freq, duty_out);
+    if (Status == XST_SUCCESS)
+    {							
+        PWM_Start(&PWMTimerInst);
+    }
+}
+
+
+
 
 /*************************************************************************************
  * This method calculates the voltage that should be output to the PWM peripheral.  
@@ -649,41 +652,42 @@ void calc_bang()
 void calc_PID()
 {
 
-    double frq_cnt;
-    u16 deriv, integral; 
+    double counts;
+    double deriv, integral, error, prev_error;
     double volt_out;    //make errors global?
-    u16 error, prev_error;
+    u16 duty_out;
 
-        delay_msecs(1);
+    delay_msecs(1);
 
-        // get count from light sensor and convert to voltage 
-        frq_cnt = read_light_sensor();
-        volt_out = count_to_volts(frq_cnt);
-        error = setpoint - volt_out;
+    // get count from light sensor and convert to voltage 
+    counts = LIGHTSENSOR_Capture(BaseAddress, slope, offset, 1);
+    volt_out = LIGHTSENSOR_Count2Volts(counts);
 
-        // calculate derivative;
-        deriv = error - prev_error;
+    // calculate derivative;
+    error = setpoint - volt_out;
+    deriv = error - prev_error;
 
-        // calculate integral
-        if (error < setpoint/10) integral += error;
-        else integral = 0; 
+    // calculate integral
+    if (error < setpoint/10) integral += error;
+    else integral = 0; 
 
-        // if we don't want integral or derivative calculation, set it to 0
-        if (!USE_INTEGRAL)  integral = 0;
-        if (!USE_DERIV)     deriv    = 0; 
+    // if we don't want integral or derivative calculation, set it to 0
+    if (!USE_INTEGRAL)  integral = 0;
+    if (!USE_DERIV)     deriv    = 0; 
 
-        // Control offset is gotten from characterization
-        volt_out = CONTROL_OFFSET + (error * prop_offset) + (deriv * deriv_offset) + (integral * integral_offset);
+    // Control offset is gotten from characterization
+    volt_out = offset + (error * prop_offset) + (deriv * deriv_offset) + (integral * integral_offset);
+    duty_out = (volt_out)* (MAX_DUTY+1)/VOLT_MAX;
 
-        // establish bounds
-        if (volt_out < 1) volt_out = 1;
-        if (volt_out > 99)volt_out = 99;
+    // establish bounds
+    if (duty_out < 1) duty_out = 1;
+    if (duty_out > 99)duty_out = 99;
 
-        Status = PWM_SetParams(&PWMTimerInst, pwm_freq, volt_out);
-        if (Status == XST_SUCCESS)
-        {							
-            PWM_Start(&PWMTimerInst);
-        }
+    Status = PWM_SetParams(&PWMTimerInst, pwm_freq, duty_out);
+    if (Status == XST_SUCCESS)
+    {							
+        PWM_Start(&PWMTimerInst);
+    }
     
 }
 
@@ -814,9 +818,12 @@ XStatus DoTest_Characterize(void)
 {
 	XStatus		Status;					// Xilinx return status
 	unsigned	tss;					// starting timestamp
-	u16			frq_cnt;				// counts to display
-	int			n;						// number of samples
+	u16		frq_cnt;				// counts to display
+	int		n;					// number of samples
 	Xuint32		freq, dutyfactor;		// current frequency and duty factor
+        Xuint32         freq_max_cnt = 0;
+        Xuint32         freq_min_cnt = 0;
+        int             i = 0;
 
 
 	// stabilize the PWM output (and thus the lamp intensity) at the
@@ -862,9 +869,7 @@ XStatus DoTest_Characterize(void)
     //ECE544 Students:
     //Find the min and max values and set the scaling/offset factors to use for your convert to 'voltage' function.
     //NOTE: It may also be useful to scale the actual 'count' values to a range of 0 - 4095 for the SerialCharter application to work correctly 
-    
-    Xuint32 freq_max_cnt = 0;
-    Xuint32 freq_min_cnt = 0;
+
     for (i = 0; i < NUM_FRQ_SAMPLES; i++) 
     {
         if (sample[i] < freq_min_cnt)
