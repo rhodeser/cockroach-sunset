@@ -139,7 +139,7 @@
 
 
 /****************************** typedefs and structures **********************/
-typedef enum {TEST_TRACKING = 0x0, TEST_STEPLOHI = 0x01, TEST_STEPHILO = 0x02, 
+typedef enum {TEST_BANG = 0x0, TEST_PID = 0x01, TEST_T_CALLS= 0x02, 
 				TEST_CHARACTERIZE = 0x03, TEST_INVALID = 0xFF} Test_t;
 
 
@@ -205,8 +205,6 @@ void set_PID_vals();
 void calc_bang();
 void calc_PID();
 double duty_to_volts();
-//TODO remove or create scale count function
-void scale_count(u16 min, u16 max);
 
 /*****************************************************************************/
 
@@ -257,13 +255,13 @@ int main()
 	microblaze_enable_interrupts();
 	 	  	
  	// display the greeting   
-    LCD_setcursor(1,0);
-    LCD_wrstring("PWM Control system ");
+        LCD_setcursor(1,0);
+        LCD_wrstring("PWM Control system ");
 	LCD_setcursor(2,0);
 	LCD_wrstring("Erik R, Caren Z");
 	NX3_writeleds(0xFF);
 	//Run the LED characterization routine to establish sensor min's and max's
-    DoTest_Characterize();
+        DoTest_Characterize();
 	NX3_writeleds(0x00);
        
     // main loop - there is no exit except by hardware reset
@@ -271,16 +269,17 @@ int main()
 	{ 
 		// read sw[1:0] to get the test to perform.
 		NX3_readBtnSw(&btnsw);
+                //TODO: change to correct switch logic
 		test = btnsw & (msk_SWITCH1 | msk_SWITCH0);
 			
-		if (test == TEST_TRACKING)  // Test 0 = Track PWM voltage
+		if (test == TEST_T_CALLS)  // Reserved for something special.  Prepare to be awesome. 
 		{
 			// write the static info to display if necessary
 			if (test != next_test)
 			{
 				LCD_clrd();
 				LCD_setcursor(1,0);
-				LCD_wrstring("| TRK| Vi: sx.xx");
+				LCD_wrstring("|WOW| so skill.");
 				LCD_setcursor(2,0);
 				LCD_wrstring("Vo:sx.xx C:sxxxx");
 			}
@@ -297,9 +296,12 @@ int main()
 				old_rotcnt = rotcnt;
 			}
 			DoTest_Track();
-			next_test = TEST_TRACKING;
+                        // next test should be?
+			next_test = TEST_BANG;
 		}   // Test 0 = Track PWM voltage
-		else if ((test == TEST_STEPHILO) || (test == TEST_STEPLOHI))  // Test 1 & 2 - Step response 
+
+
+		else if ((test == TEST_BANG ) || (test == TEST_PID))  // Test 1 & 2 - Step response 
 		{
 			Xfloat32	v;
 			char		s[20];	
@@ -307,13 +309,13 @@ int main()
 			// write the static info to the display if necessary
 			if (test != next_test)
 			{
-				if (test == TEST_STEPHILO)
+				if (test == TEST_BANG)
 				{
-					strcpy(s, "|HILO|Press RBtn");
+					strcpy(s, "|BANG|Press RBtn");
 				}
 				else
 				{
-					strcpy(s, "|LOHI|Press RBtn");
+					strcpy(s, "|PID|Press RBtn");
 				}
 				
 				LCD_clrd();
@@ -388,9 +390,8 @@ int main()
 					
 					count = sample[smpl_idx];
 					
-					//ECE544 Students:
-                    //Convert from count to 'volts'
-                    //v = count_to_volts(count);
+                                        //Convert from count to 'volts'
+                                        v = LIGHTSENSOR_Count2Volts(count); 
 					
 					voltstostrng(v, s);
 					xil_printf("%d\t%d\t%s\n\r", smpl_idx, count, s);
@@ -471,9 +472,9 @@ int main()
 					
 					count = sample[smpl_idx];
 					
-					//ECE544 Students:
-                    //Convert from count to 'volts'
-                    //v = YOUR_FUNCTION(count);
+                                        //Convert from count to 'volts'
+                                        //NOTE: incompatible types
+                                        v = LIGHTSENSOR_Count2Volts(count); 
 					
 					voltstostrng(v, s);
 					xil_printf("%d\t%d\t%s\n\r", smpl_idx, count, s);
@@ -516,8 +517,6 @@ int main()
 /*********************************************/
 /*             Test Functions                */
 /*********************************************/
-
-
 
 /**************************************************************************************
  * The pushbuttons allow the user to control the offset values for each of the control
@@ -562,6 +561,7 @@ void set_PID_vals()
     }
 
 // TODO: update_lcd(...);
+// void update_lcd(int vin_dccnt, short frqcnt)
 
 }
 
@@ -717,9 +717,9 @@ XStatus DoTest_Track(void)
 
 		tss = timestamp;	
 		
-		//ECE544 Students:
-        //make the light sensor measurement
-		//frq_cnt = YOUR FUNCTION HERE;
+                //make the light sensor measurement
+                //NOTE: BaseAddress yet to be defined from embsys 
+		frq_cnt = LIGHTSENSOR_Capture(BaseAddress, slope, offset, is_scaled);
 		
 		delay_msecs(1);
 		frq_smple_interval = timestamp - tss;
@@ -788,9 +788,9 @@ XStatus DoTest_Step(int dc_start)
 	while (smpl_idx < NUM_FRQ_SAMPLES)
 	{
 	
-		//ECE544 Students:
         //make the light sensor measurement
-		//sample[smpl_idx++] = YOUR FUNCTION HERE;
+		frq_cnt = 
+		sample[smpl_idx++] = LIGHTSENSOR_Capture(BaseAddress, slope, offset, is_scaled);
 		
 	}		
 	frq_smple_interval = (timestamp - tss) / NUM_FRQ_SAMPLES;
@@ -852,7 +852,7 @@ XStatus DoTest_Characterize(void)
 		
         //ECE544 Students:
         // make the light sensor measurement
-		//sample[smpl_idx++] = YOUR FUNCTION HERE;
+		sample[smpl_idx++] = LIGHTSENSOR_Capture(BaseAddress, slope, offset, is_scaled);
 		
 		n++;
 		delay_msecs(50);
@@ -863,10 +863,8 @@ XStatus DoTest_Characterize(void)
     //Find the min and max values and set the scaling/offset factors to use for your convert to 'voltage' function.
     //NOTE: It may also be useful to scale the actual 'count' values to a range of 0 - 4095 for the SerialCharter application to work correctly 
     
-    // define above
-    // fp values?
-    u16 freq_max_cnt = 0;
-    u16 freq_min_cnt = 0;
+    Xuint32 freq_max_cnt = 0;
+    Xuint32 freq_min_cnt = 0;
     for (i = 0; i < NUM_FRQ_SAMPLES; i++) 
     {
         if (sample[i] < freq_min_cnt)
@@ -879,7 +877,9 @@ XStatus DoTest_Characterize(void)
         }
     }
 
-    scale_count(freq_min_cnt,freq_max_cnt);
+    // TODO: slope and offset are defined as pointers only in some
+    // instances (in lightsensor driver)
+    LIGHTSENSOR_SetScaling(freq_min_cnt, freq_max_cnt, &slope, &offset)
     return n;
 }
 
@@ -927,7 +927,9 @@ XStatus do_init(void)
 	}
 	
     //ECE544 Students:
-    //Initialize your peripheral here
+    //Initialize LIGHTSABER peripheral 
+    //TODO: Get macro for BaseAddress
+    LIGHTSENSOR_Init(BaseAddress);
 			
 	// initialize the interrupt controller
 	Status = XIntc_Initialize(&IntrptCtlrInst,INTC_DEVICE_ID);
@@ -1044,7 +1046,7 @@ void delay_msecs(u32 msecs)
 
  	// update the data
     // ECE544 Students: Convert frequency count to 'volts'
-    // v = YOUR_FUNCTION(frqcnt);
+        v = LIGHTSENSOR_Count2Volts(frqcnt); 
  	voltstostrng(v, s);
  	LCD_setcursor(2, 3);
  	LCD_wrstring("     ");
