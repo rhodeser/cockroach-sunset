@@ -1,4 +1,6 @@
 #  Nexys 3 Board
+Net fpga_0_RS232_Uart_1_RX_pin LOC=N17  |  IOSTANDARD=LVCMOS33;
+Net fpga_0_RS232_Uart_1_TX_pin LOC=N18  |  IOSTANDARD=LVCMOS33;
 Net fpga_0_mem_bus_mux_0_MEM_ADDR_pin<22> LOC=K18  |  IOSTANDARD = LVCMOS33  |  DRIVE=2;
 Net fpga_0_mem_bus_mux_0_MEM_ADDR_pin<21> LOC=K17  |  IOSTANDARD = LVCMOS33  |  DRIVE=2;
 Net fpga_0_mem_bus_mux_0_MEM_ADDR_pin<20> LOC=J18  |  IOSTANDARD = LVCMOS33  |  DRIVE=2;
@@ -139,7 +141,8 @@ Net "n3eif_0_rotary_press_pin" LOC = J6 | IOSTANDARD = LVCMOS33; #Bank = 3, pin 
 ## Your design should connect to PWM_IN and FRQE_OUT as shown on the schematics.
 ## This .ucf file puts the PWM_OUT from the embedded system on pin name IO_L47P (JD7) but leaves
 ## the decision on where you should bring FREQ_OUT into your design up to you.
-#Net "JD<0>" LOC = G11 | IOSTANDARD = LVCMOS33; #Bank = 3, pin name = IO_L40P, Sch name = JD1
+
+Net "lightsensor_0_freq_out_pin" LOC = G11 | IOSTANDARD = LVCMOS33; #Bank = 3, pin name = IO_L40P, Sch name = JD1
 #Net "JD<1>" LOC = F10 | IOSTANDARD = LVCMOS33; #Bank = 3, pin name = IO_L40N, Sch name = JD2
 #Net "JD<2>" LOC = F11 | IOSTANDARD = LVCMOS33; #Bank = 3, pin name = IO_L42P, Sch name = JD3
 #Net "JD<3>" LOC = E11 | IOSTANDARD = LVCMOS33; #Bank = 3, pin name = IO_L42N, Sch name = JD4
