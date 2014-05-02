@@ -1,0 +1,16 @@
+##############################################################################
+## Filename:          C:\PSU_Projects\ECE544_Spring14_Projects\Nexys3\ECE544_Repository_14_7\MyProcessorIPLib\pcores/n3eif_v1_00_a/data/n3eif_v2_1_0.pao
+## Description:       Peripheral Analysis Order
+## Date:              Sat Mar 29 08:42:27 2014 (by Create and Import Peripheral Wizard)
+##############################################################################
+
+lib proc_common_v3_00_a all vhdl
+lib plbv46_slave_single_v1_01_a all vhdl
+lib n3eif_v1_00_a user_logic verilog
+lib n3eif_v1_00_a n3eif vhdl
+lib n3eif_v1_00_a kcpsm6 verilog
+lib n3eif_v1_00_a n3_if_core verilog
+lib n3eif_v1_00_a n3ifpgm verilog
+lib n3eif_v1_00_a pblaze_if verilog
+lib n3eif_v1_00_a pblaze_simple_pic verilog
+lib n3eif_v1_00_a rotary_filter verilog
