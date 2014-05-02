@@ -156,7 +156,7 @@ output                                    IP2Bus_Error;
   // --USER logic implementation added here
 
   // Instantiate the lightsensor periferal
-  lightsensor LIGHTSENSOR
+  my_lightsensor LIGHTSENSOR
   (
 		  // port declarations
 		  .clk(Bus2IP_Clk),				// system clock

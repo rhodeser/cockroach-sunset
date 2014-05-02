@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////////////
 // Create Date:    04/30/2014  by Caren Zgheib
-// Module Name:    lightsensor.v 
+// Module Name:    my_lightsensor.v 
 // Project Name:   ECE544: project 2
 // Target Devices: Nexys 3
 // Description:    Pulse Width Detection module that detrmines the high time
@@ -27,7 +27,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module lightsensor(
+module my_lightsensor(
 		input clk,					// system clock
 		input reset,				// system reset
 		input freq_out,				// the generated frequency signal
@@ -138,5 +138,5 @@ end
 assign high_time	= high_time_final;
 assign period		= period_final;
 
-endmodule //lightsensor
+endmodule //my_lightsensor
 
