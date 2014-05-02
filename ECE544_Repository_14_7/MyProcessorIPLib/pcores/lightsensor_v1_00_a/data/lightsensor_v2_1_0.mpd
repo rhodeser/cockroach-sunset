@@ -34,6 +34,9 @@ PARAMETER C_INCLUDE_DPHASE_TIMER = 1, DT = INTEGER
 PARAMETER C_FAMILY = virtex6, DT = STRING
 
 ## Ports
+PORT freq_out = "", DIR = I
+PORT high_time = "", DIR = O, VEC = [31:0]
+PORT period = "", DIR = O, VEC = [31:0]
 PORT SPLB_Clk = "", DIR = I, SIGIS = CLK, BUS = SPLB
 PORT SPLB_Rst = SPLB_Rst, DIR = I, SIGIS = RST, BUS = SPLB
 PORT PLB_ABus = PLB_ABus, DIR = I, VEC = [0:31], BUS = SPLB

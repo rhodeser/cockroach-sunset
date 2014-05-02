@@ -1,10 +1,18 @@
 ##############################################################################
 ## Filename:          C:\Users\Caren\Dropbox\PSU\ECE544\Projects\ECE544_Repository_14_7\MyProcessorIPLib\pcores/lightsensor_v1_00_a/data/lightsensor_v2_1_0.pao
 ## Description:       Peripheral Analysis Order
-## Date:              Wed Apr 30 11:42:23 2014 (by Create and Import Peripheral Wizard)
+## Date:              Fri May 02 13:46:33 2014 (by Create and Import Peripheral Wizard)
 ##############################################################################
 
-lib proc_common_v3_00_a all vhdl
-lib plbv46_slave_single_v1_01_a all vhdl
+lib proc_common_v3_00_a proc_common_pkg vhdl
+lib proc_common_v3_00_a ipif_pkg vhdl
+lib proc_common_v3_00_a or_muxcy vhdl
+lib proc_common_v3_00_a or_gate128 vhdl
+lib proc_common_v3_00_a family_support vhdl
+lib proc_common_v3_00_a pselect_f vhdl
+lib proc_common_v3_00_a counter_f vhdl
+lib plbv46_slave_single_v1_01_a plb_address_decoder vhdl
+lib plbv46_slave_single_v1_01_a plb_slave_attachment vhdl
+lib plbv46_slave_single_v1_01_a plbv46_slave_single vhdl
 lib lightsensor_v1_00_a user_logic verilog
 lib lightsensor_v1_00_a lightsensor vhdl

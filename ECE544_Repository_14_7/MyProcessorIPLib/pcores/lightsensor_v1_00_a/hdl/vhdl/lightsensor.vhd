@@ -159,9 +159,9 @@ entity lightsensor is
   port
   (
     -- ADD USER PORTS BELOW THIS LINE ------------------
-    sysclk						   : in std_logic;
     freq_out					   : in std_logic;
-    enable						   : in std_logic;
+	high_time					   : out std_logic_vector(31 downto 0);
+	period						   : out std_logic_vector(31 downto 0);
     -- ADD USER PORTS ABOVE THIS LINE ------------------
 
     -- DO NOT EDIT BELOW THIS LINE ---------------------
@@ -313,9 +313,9 @@ architecture IMP of lightsensor is
     port
     (
       -- ADD USER PORTS BELOW THIS LINE ------------------
-      sysclk						   : in std_logic;
       freq_out					   	   : in std_logic;
-      enable						   : in std_logic;
+	  high_time						   : out std_logic_vector(31 downto 0);
+	  period						   : out std_logic_vector(31 downto 0);
       -- ADD USER PORTS ABOVE THIS LINE ------------------
 
       -- DO NOT EDIT BELOW THIS LINE ---------------------
@@ -429,9 +429,9 @@ begin
     port map
     (
       -- MAP USER PORTS BELOW THIS LINE ------------------
-      sysclk						 => sysclk,
 	  freq_out						 => freq_out,
-	  enable						 => enable,
+	  high_time						 => high_time,
+	  period						 => period,
       -- MAP USER PORTS ABOVE THIS LINE ------------------
 
       Bus2IP_Clk                     => ipif_Bus2IP_Clk,
