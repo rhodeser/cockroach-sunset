@@ -1,12 +1,12 @@
 /*****
  * testpwm.c - Test program for Xilinx timer/ctr PWM library
  *
- * Copyright Roy Kravitz,  Portland State University 2013, 2014
+ * Copyright Roy Kravitz,  Portland State University 2013, 2014, 2015
  *
  * 
  * Author:	Roy Kravitz
- * Version:	2.0
- * Date:	27-March-2013
+ * Version:	2.1
+ * Date:	29-March-2014
  *
  * Revision History
  * ================
@@ -14,6 +14,7 @@
  * 01-Jan-11	RK		Modified for ISE 12.x and later.
  *						No changes to this other than to the Copyright line
  * 27-Mar-13	RK		Modified for Nexys 3, N3EIF (Nexys3 Extended Peripheral Interface) and ISE 14.x
+ * 29-Mar-14	RK		Minor edits.  No functional changes.
  *
  *
  * Description:
