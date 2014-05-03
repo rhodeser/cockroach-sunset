@@ -80,9 +80,9 @@
 module user_logic
 (
   // -- ADD USER PORTS BELOW THIS LINE ---------------
-  sysclk,
   freq_out,
-  enable,
+  high_time,
+  period,
   // -- ADD USER PORTS ABOVE THIS LINE ---------------
 
   // -- DO NOT EDIT BELOW THIS LINE ------------------
@@ -111,9 +111,9 @@ parameter C_NUM_REG                      = 6;
 // -- DO NOT EDIT ABOVE THIS LINE --------------------
 
 // -- ADD USER PORTS BELOW THIS LINE -----------------
-input 									sysclk;			// system clock
 input 									freq_out;		// the generated frequency signal
-input 									enable;			// enable periferal
+output 	  [31:0]						high_time;		// detected high time
+output	  [31:0]						period;			// detected period
 // -- ADD USER PORTS ABOVE THIS LINE -----------------
 
 // -- DO NOT EDIT BELOW THIS LINE --------------------
@@ -156,16 +156,20 @@ output                                    IP2Bus_Error;
   // --USER logic implementation added here
 
   // Instantiate the lightsensor periferal
-  lightsensor
+  my_lightsensor LIGHTSENSOR
   (
 		  // port declarations
-		  .clk(sysclk),				// system clock
+		  .clk(Bus2IP_Clk),				// system clock
 		  .reset(Bus2IP_Reset),		// system reset
 		  .freq_out(freq_out),		// generated frequency signal
 		  .enable(en_int),			// periferal enable
 		  .high_time(high_time_int),// detected high time count
 		  .period(period_int)		// detected period count
   );
+  
+  // assign outputs
+  assign high_time = high_time_int;
+  assign period = period_int;
 
   // slv_reg0 is the Control register (from microblaze to periferal)
   assign en_int = slv_reg0[0];
