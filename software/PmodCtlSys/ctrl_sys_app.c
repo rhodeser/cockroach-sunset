@@ -119,11 +119,12 @@
 #define MAX_DUTY                        99 
 #define USE_INTEGRAL                    1
 #define USE_DERIV                       1
-#define OFFSET_INCREMENT                5
+#define GAIN_INCREMENT                5
 //TODO Define parameters
-#define PROP_INIT_OFFSET                 
-#define INT_INIT_OFFSET                
-#define DERIV_INIT_OFFSET                
+#define PROP_INIT_GAIN                 
+#define INT_INIT_GAIN                
+#define DERIV_INIT_GAIN                
+#define OFFSET_INIT
 #define	VOLT_MAX                        3.3	
 #define	VOLT_MIN                        0.1	
 #define SETPOINT_SCALE                  40.96
@@ -140,7 +141,7 @@ typedef enum {TEST_BANG = 0x0, TEST_PID = 0x01, TEST_T_CALLS= 0x02,
 				TEST_CHARACTERIZE = 0x03, TEST_INVALID = 0xFF} Test_t;
 
 
-typedef enum {PROPORTIONAL = 0x0, INTEGRAL = 0x01, DERIVATIVE = 0x02} Control_t;
+typedef enum {PROPORTIONAL = 0x0, INTEGRAL = 0x01, DERIVATIVE = 0x02, OFFSET = 0x03} Control_t;
 
 /*****************************************************************************/	
 
@@ -171,13 +172,13 @@ int						pwm_duty;					// PWM duty cycle
 // Light Sensor Peripheral parameters
 // Add whatever global variables you need to use your Light Sensor peripheral driver
 double  setpoint;
-double  prop_offset, integral_offset, deriv_offset;
+double  prop_gain, integral_gain, deriv_gain;
 double  scale;
 Xuint32 offset;
 //enum for control selection
 Control_t PID_current_sel;
 // Array that keeps track of the PID parameter values
-double PID_offset[3] = {PROP_INIT_OFFSET, INT_INIT_OFFSET, DERIV_INIT_OFFSET};
+double PID_offset[4] = {PROP_INIT_GAIN, INT_INIT_GAIN, DERIV_INIT_GAIN, OFFSET_INIT};
 				
 /*---------------------------------------------------------------------------*/					
 int						debugen = 0;				// debug level/flag
@@ -205,7 +206,9 @@ double count_to_volts(u16 count);
 void set_PID_vals();
 void calc_bang();
 void calc_PID();
+void no_test_LCD();
 double duty_to_volts();
+void param_select();
 
 /*****************************************************************************/
 
@@ -237,9 +240,10 @@ int main()
 	pwm_freq = PWM_FREQUENCY;
 	next_test = TEST_INVALID;
         
-        prop_offset     = PROP_INIT_OFFSET;
-        integral_offset = INT_INIT_OFFSET;
-        deriv_offset    = DERIV_INIT_OFFSET;
+        prop_gain     = PROP_INIT_GAIN;
+        integral_gain = INT_INIT_GAIN;
+        deriv_gain    = DERIV_INIT_GAIN;
+        
 
 	// Enable the Microblaze caches and kick off the processing by enabling the Microblaze
 	// interrupt.  This starts the FIT timer which updates the timestamp.
@@ -261,10 +265,27 @@ int main()
 	LCD_setcursor(2,0);
 	LCD_wrstring("Erik R, Caren Z");
 	NX3_writeleds(0xFF);
+        delay_msecs(2500);
+
+        LCD_clrd();
+        LCD_setcursor(1,0);
+        LCD_wrstring("Characterizing..");
 	//Run the LED characterization routine to establish sensor min's and max's
         DoTest_Characterize();
+        LCD_setcursor(2,0);
+        LCD_wrstring("Done.");
+
+
 	NX3_writeleds(0x00);
-       
+
+        delay_msecs(500);
+        //set initial screen
+        LCD_clrd();
+        LCD_setcursor(1,0);
+        LCD_wrstring("P___  I___  D___");
+        LCD_setcursor(2,0);
+        LCD_wrstring("SP:_.__  OFF:___");   
+        //LCD_shiftl();
     // main loop - there is no exit except by hardware reset
 	while (1)
 	{ 
@@ -272,6 +293,10 @@ int main()
                 if (btnsw & msk_SWITCH3) pwm_duty = MAX_DUTY;  
                 else                     pwm_duty = MIN_DUTY;	
 
+                // Write values to display when in "idle" state
+                no_test_LCD();
+                // TODO Allow users to move cursor and change values
+                param_select();
 		// read sw[1:0] to get the test to perform.
 		NX3_readBtnSw(&btnsw);
 		test = btnsw & (msk_SWITCH1 | msk_SWITCH0);
@@ -279,15 +304,6 @@ int main()
 		if (test == TEST_T_CALLS)  // Reserved for something special.  Prepare to be awesome. 
 		{
 			// write the static info to display if necessary
-			if (test != next_test)
-			{
-				LCD_clrd();
-				LCD_setcursor(1,0);
-				LCD_wrstring("|WOW| so skill.");
-				LCD_setcursor(2,0);
-				LCD_wrstring("Vo:sx.xx C:sxxxx");
-			}
-				 						
 			// read rotary count and handle duty cycle changes
 			// limit duty cycle to between STEPDC_MIN and STEPDC_MAX
 			// PWM frequency does not change in this test
@@ -309,6 +325,8 @@ int main()
 			char		s[20];	
 			
 			// write the static info to the display if necessary
+/*Running Test (rotary pushbutton pushed): Show which control algorithm is running and 
+display instructions for running test and uploading data.*/ 
 			if (test != next_test)
 			{
 				if (test == TEST_BANG)
@@ -356,62 +374,65 @@ int main()
 				NX3_writeleds(0x00);
 
                                 delay_msecs(10);
-                                //FEATURE: wait for user input to send data over?
-                                //if (msk_BTN_ROT & btnsw){
-				
-				
-				// light "Transfer" LED to indicate that data is being transmitted
-				// Show the traffic on the LCD
-				NX3_writeleds(0x02);
-				LCD_clrd();
-				LCD_setcursor(1, 0);
-				LCD_wrstring("Sending Data....");
-				LCD_setcursor(2, 0);
-				LCD_wrstring("S:    DATA:     ");
+                                LCD_setcursor(2,0);
+				LCD_wrstring("Hit RBtn to send");
 
-				// print the descriptive heading followed by the data
-				if (test == TEST_BANG)
-				{
-					xil_printf("\n\rBang Bang! Test Data\t\tAppx. Sample Interval: %d msec\n\r", frq_smple_interval);
-				}
-				else
-				{
-					xil_printf("\n\rPID Test Data\t\tAppx. Sample Interval: %d msec\n\r", frq_smple_interval);
-				}
-				
-				// trigger the serial charter program)
-				xil_printf("===STARTPLOT===\n");
+                                //FEATURE: wait for user input to send data over
+                                if (msk_BTN_ROT & btnsw)
+                                {
+                                    // light "Transfer" LED to indicate that data is being transmitted
+                                    // Show the traffic on the LCD
+                                    NX3_writeleds(0x02);
+                                    LCD_clrd();
+                                    LCD_setcursor(1, 0);
+                                    LCD_wrstring("Sending Data....");
+                                    LCD_setcursor(2, 0);
+                                    LCD_wrstring("S:    DATA:     ");
 
-				// start with the second sample.  The first sample is not representative of
-				// the data.  This will pretty-up the graph a bit								
-				for (smpl_idx = 1; smpl_idx < NUM_FRQ_SAMPLES; smpl_idx++)
-				{
-					u16 count;
-					
-					count = sample[smpl_idx];
-					
-                                        //Convert from count to 'volts'
-                                        v = LIGHTSENSOR_Count2Volts(count); 
-					
-					voltstostrng(v, s);
-					xil_printf("%d\t%d\t%s\n\r", smpl_idx, count, s);
-					
-					LCD_setcursor(2, 2);
-					LCD_wrstring("   ");
-					LCD_setcursor(2, 2);
-					LCD_putnum(smpl_idx, 10);
-					LCD_setcursor(2, 11);
-					LCD_wrstring("     ");
-					LCD_setcursor(2, 11);
-					LCD_putnum(count, 10);
-				}
-				
-				// stop the serial charter program				
-				xil_printf("===ENDPLOT===\n");
-				
-				NX3_writeleds(0x00);
-				old_btnsw = btnsw;								
-				next_test = TEST_INVALID;			
+                                    // print the descriptive heading followed by the data
+                                    if (test == TEST_BANG)
+                                    {
+                                            xil_printf("\n\rBang Bang! Test Data\t\tAppx. Sample Interval: %d msec\n\r", frq_smple_interval);
+                                    }
+                                    else
+                                    {
+                                            xil_printf("\n\rPID Test Data\t\tAppx. Sample Interval: %d msec\n\r", frq_smple_interval);
+                                    }
+                                    
+                                    // trigger the serial charter program)
+                                    xil_printf("===STARTPLOT===\n");
+
+                                    // start with the second sample.  The first sample is not representative of
+                                    // the data.  This will pretty-up the graph a bit								
+                                    for (smpl_idx = 1; smpl_idx < NUM_FRQ_SAMPLES; smpl_idx++)
+                                    {
+                                            u16 count;
+                                            
+                                            count = sample[smpl_idx];
+                                            
+                                            //Convert from count to 'volts'
+                                            v = LIGHTSENSOR_Count2Volts(count); 
+                                            
+                                            voltstostrng(v, s);
+                                            xil_printf("%d\t%d\t%s\n\r", smpl_idx, count, s);
+                                            
+                                            LCD_setcursor(2, 2);
+                                            LCD_wrstring("   ");
+                                            LCD_setcursor(2, 2);
+                                            LCD_putnum(smpl_idx, 10);
+                                            LCD_setcursor(2, 11);
+                                            LCD_wrstring("     ");
+                                            LCD_setcursor(2, 11);
+                                            LCD_putnum(count, 10);
+                                    }
+                                    
+                                    // stop the serial charter program				
+                                    xil_printf("===ENDPLOT===\n");
+                                    
+                                    NX3_writeleds(0x00);
+                                    old_btnsw = btnsw;								
+                                    next_test = TEST_INVALID;			
+                                }
 			}  // do the step test and dump data
 			else
 			{
@@ -518,6 +539,52 @@ int main()
 /*             Test Functions                */
 /*********************************************/
 
+/* 
+ * Move the cursor to the different control parameters based on the user's input from the EAST and
+ * WEST buttons
+ */
+
+void param_select();
+{
+
+}
+
+
+void no_test_LCD()
+{
+    // Write Proportional gain
+    LCD_setcursor(1, 1);
+    LCD_wrstring("   ");
+    LCD_setcursor(1, 1);
+    LCD_putnum(prop_gain, 10);
+
+    // Write Integral gain
+    LCD_setcursor(1, 7);
+    LCD_wrstring("   ");
+    LCD_setcursor(1, 7);
+    LCD_putnum(integral_gain, 10);
+
+    // Write Derivative gain
+    LCD_setcursor(1, 13);
+    LCD_wrstring("   ");
+    LCD_setcursor(1, 13);
+    LCD_putnum(deriv_gain, 10);
+
+    // Write Setpoint
+    LCD_setcursor(2, 4);
+    LCD_wrstring(" ");
+    LCD_setcursor(2, 6);
+    LCD_wrstring("  ");
+    LCD_putnum(setpoint, 10);
+
+    // Write Offset
+    LCD_setcursor(2, 13);
+    LCD_wrstring("   ");
+    LCD_setcursor(2, 13);
+    LCD_putnum(offset, 10);
+}
+
+
 /**************************************************************************************
  * The pushbuttons allow the user to control the offset values for each of the control
  * calculations (Proportional, Integral, and Derivative). This ultimately allows for
@@ -529,32 +596,45 @@ int main()
  * to the screen.
 **************************************************************************************/
 
-
 void set_PID_vals()
 {
-    
+    u16 row = 1;
+    u16 col = 1;
     // Set which control measurement we're using
     if (btnsw & msk_BTN_NORTH)
-         {
+    {
          // increment to the next selection.  If we're at the last enum, set it to the 1st (proportional)
-         if (PID_current_sel == DERIVATIVE) PID_current_sel = PROPORTIONAL; 
+         if (PID_current_sel == OFFSET) PID_current_sel = PROPORTIONAL; 
          else PID_current_sel = Control_t((int)(PID_current_sel+1));  //casting to allow increment
-         }
+
+         // cursor control logic
+        if (PID_current_sel == PROPORTIONAL)                                    row  = col = 1;
+        else if (PID_current_sel == INTEGRAL || PID_current_sel == DERIVATIVE)  col += 6; 
+        else if (PID_current_sel == OFFSET)                                     row  = 2; 
+    }
+
+    //TODO LCD_docmd(...);
+    LCD_setcursor(row,col);
+    //LCD_docmd(...);
        
+    // FEATURE: test array, correct increments 
+    // if (btnsw & msk_BTN_WEST)   ++PID_offset[PID_current_sel];
+    // if (btnsw & msk_BTN_EAST)   --PID_offset[PID_current_sel];  
+    // special case for offset
+    
     if (btnsw & msk_BTN_WEST)
     {
-        // FEATURE: test array 
-        //++PID_offset[PID_current_sel];
-        if (PID_current_sel == PROPORTIONAL)     prop_offset     += OFFSET_INCREMENT;
-        else if (PID_current_sel == INTEGRAL)    integral_offset += OFFSET_INCREMENT;
-        else if (PID_current_sel == DERIVATIVE)  deriv_offset    += OFFSET_INCREMENT;
+        if (PID_current_sel == PROPORTIONAL)     prop_gain     += GAIN_INCREMENT;
+        else if (PID_current_sel == INTEGRAL)    integral_gain += GAIN_INCREMENT;
+        else if (PID_current_sel == DERIVATIVE)  deriv_gain    += GAIN_INCREMENT;
+        else                                     offset        += GAIN_INCREMENT; 
     }
     if (btnsw & msk_BTN_EAST)
     {
-        //--PID_offset[PID_current_sel];
-        if (PID_current_sel == PROPORTIONAL)     prop_offset     -= OFFSET_INCREMENT;
-        else if (PID_current_sel == INTEGRAL)    integral_offset -= OFFSET_INCREMENT;
-        else if (PID_current_sel == DERIVATIVE)  deriv_offset    -= OFFSET_INCREMENT;
+        if (PID_current_sel == PROPORTIONAL)     prop_gain     -= GAIN_INCREMENT;
+        else if (PID_current_sel == INTEGRAL)    integral_gain -= GAIN_INCREMENT;
+        else if (PID_current_sel == DERIVATIVE)  deriv_gain    -= GAIN_INCREMENT;
+        else                                     offset        -= GAIN_INCREMENT; 
     }
 
 
@@ -686,7 +766,7 @@ void calc_PID()
         if (!USE_DERIV)     deriv    = 0; 
 
         // Control offset is gotten from characterization
-        volt_out = offset + (error * prop_offset) + (deriv * deriv_offset) + (integral * integral_offset);
+        volt_out = offset + (error * prop_gain) + (deriv * deriv_gain) + (integral * integral_gain);
         duty_out = (volt_out)* (MAX_DUTY+1)/VOLT_MAX;
 
         // establish bounds
