@@ -93,14 +93,14 @@
 // Min and Max duty cycle for step and characterization tests
 #define STEPDC_MIN				1
 #define STEPDC_MAX				99					
-		
+
 // Interrupt Controller parameters
 #define INTC_DEVICE_ID			XPAR_XPS_INTC_0_DEVICE_ID
 #define INTC_BASEADDR			XPAR_XPS_INTC_0_BASEADDR
 #define INTC_HIGHADDR			XPAR_XPS_INTC_0_HIGHADDR
 #define TIMER_INTERRUPT_ID		XPAR_XPS_INTC_0_XPS_TIMER_0_INTERRUPT_INTR
 #define FIT_INTERRUPT_ID		XPAR_XPS_INTC_0_FIT_TIMER_0_INTERRUPT_INTR 
-				
+
 // Fixed Interval timer - 66.67MHz input clock, 5KHz output clock
 // 1 msec time interval for FIT interrupt handler
 // FIT_COUNT_1MSEC = FIT_CLOCK_FREQ_HZ * .001
@@ -119,12 +119,13 @@
 #define MAX_DUTY                        99 
 #define USE_INTEGRAL                    1
 #define USE_DERIV                       1
-#define GAIN_INCREMENT                5
-//TODO Define parameters
-#define PROP_INIT_GAIN                 
-#define INT_INIT_GAIN                
-#define DERIV_INIT_GAIN                
-#define OFFSET_INIT
+#define GAIN_INCREMENT                  5
+//TODO Define parameters below correctly
+#define PROP_INIT_GAIN                  10
+#define INT_INIT_GAIN                   10 
+#define DERIV_INIT_GAIN                 10 
+#define OFFSET_INIT                     0
+
 #define	VOLT_MAX                        3.3	
 #define	VOLT_MIN                        0.1	
 #define SETPOINT_SCALE                  40.96
@@ -138,7 +139,7 @@
 
 /****************************** typedefs and structures **********************/
 typedef enum {TEST_BANG = 0x0, TEST_PID = 0x01, TEST_T_CALLS= 0x02, 
-				TEST_CHARACTERIZE = 0x03, TEST_INVALID = 0xFF} Test_t;
+    TEST_CHARACTERIZE = 0x03, TEST_INVALID = 0xFF} Test_t;
 
 
 typedef enum {PROPORTIONAL = 0x0, INTEGRAL = 0x01, DERIVATIVE = 0x02, OFFSET = 0x03} Control_t;
@@ -178,21 +179,21 @@ Xuint32 offset;
 //enum for control selection
 Control_t PID_current_sel;
 // Array that keeps track of the PID parameter values
-double PID_offset[4] = {PROP_INIT_GAIN, INT_INIT_GAIN, DERIV_INIT_GAIN, OFFSET_INIT};
-				
+double PID_gain[4] = {PROP_INIT_GAIN, INT_INIT_GAIN, DERIV_INIT_GAIN, OFFSET_INIT};
+
 /*---------------------------------------------------------------------------*/					
 int						debugen = 0;				// debug level/flag
 /*---------------------------------------------------------------------------*/
-		
+
 /*****************************************************************************/	
 
-	
+
 
 /************************** Function Prototypes ******************************/
 XStatus 		DoTest_Track(void);											// Perform Tracking test
 XStatus			DoTest_Step(int dc_start);									// Perform Step test
 XStatus			DoTest_Characterize(void);									// Perform Characterization test
-			
+
 XStatus			do_init(void);												// initialize system
 void			delay_msecs(u32 msecs);										// busy-wait delay for "msecs" milliseconds
 void			voltstostrng(Xfloat32 v, char* s);							// converts volts to a string
@@ -218,323 +219,323 @@ void param_select();
 /*********************************************/		
 int main()
 {
-	XStatus 	Status;
-	u32			btnsw = 0x00000000, old_btnsw = 0x000000FF;
-	int			rotcnt, old_rotcnt = 0x1000;
-	Test_t		test, next_test;
+    XStatus 	Status;
+    u32			btnsw = 0x00000000, old_btnsw = 0x000000FF;
+    int			rotcnt, old_rotcnt = 0x1000;
+    Test_t		test, next_test;
 
 
-	// initialize devices and set up interrupts, etc.
- 	Status = do_init();
- 	if (Status != XST_SUCCESS)
- 	{
- 		LCD_setcursor(1,0);
- 		LCD_wrstring("****** ERROR *******");
- 		LCD_setcursor(2,0);
- 		LCD_wrstring("INIT FAILED- EXITING");
- 		exit(XST_FAILURE);
- 	}
-
-	// initialize the variables
-	timestamp = 0;							
-	pwm_freq = PWM_FREQUENCY;
-	next_test = TEST_INVALID;
-        
-        prop_gain     = PROP_INIT_GAIN;
-        integral_gain = INT_INIT_GAIN;
-        deriv_gain    = DERIV_INIT_GAIN;
-        
-
-	// Enable the Microblaze caches and kick off the processing by enabling the Microblaze
-	// interrupt.  This starts the FIT timer which updates the timestamp.
-	if (USE_ICACHE == 1)
-	{
-		microblaze_invalidate_icache();
-		microblaze_enable_icache();
-	}
-	if (USE_DCACHE == 1)
-	{
-		microblaze_invalidate_dcache();
-		microblaze_enable_dcache();
-	}
-	microblaze_enable_interrupts();
-	 	  	
- 	// display the greeting   
+    // initialize devices and set up interrupts, etc.
+    Status = do_init();
+    if (Status != XST_SUCCESS)
+    {
         LCD_setcursor(1,0);
-        LCD_wrstring("PWM Control system ");
-	LCD_setcursor(2,0);
-	LCD_wrstring("Erik R, Caren Z");
-	NX3_writeleds(0xFF);
-        delay_msecs(2500);
-
-        LCD_clrd();
-        LCD_setcursor(1,0);
-        LCD_wrstring("Characterizing..");
-	//Run the LED characterization routine to establish sensor min's and max's
-        DoTest_Characterize();
+        LCD_wrstring("****** ERROR *******");
         LCD_setcursor(2,0);
-        LCD_wrstring("Done.");
+        LCD_wrstring("INIT FAILED- EXITING");
+        exit(XST_FAILURE);
+    }
+
+    // initialize the variables
+    timestamp = 0;							
+    pwm_freq = PWM_FREQUENCY;
+    next_test = TEST_INVALID;
+
+    prop_gain     = PROP_INIT_GAIN;
+    integral_gain = INT_INIT_GAIN;
+    deriv_gain    = DERIV_INIT_GAIN;
 
 
-	NX3_writeleds(0x00);
+    // Enable the Microblaze caches and kick off the processing by enabling the Microblaze
+    // interrupt.  This starts the FIT timer which updates the timestamp.
+    if (USE_ICACHE == 1)
+    {
+        microblaze_invalidate_icache();
+        microblaze_enable_icache();
+    }
+    if (USE_DCACHE == 1)
+    {
+        microblaze_invalidate_dcache();
+        microblaze_enable_dcache();
+    }
+    microblaze_enable_interrupts();
 
-        delay_msecs(500);
-        //set initial screen
-        LCD_clrd();
-        LCD_setcursor(1,0);
-        LCD_wrstring("P___  I___  D___");
-        LCD_setcursor(2,0);
-        LCD_wrstring("SP:_.__  OFF:___");   
-        //LCD_shiftl();
+    // display the greeting   
+    LCD_setcursor(1,0);
+    LCD_wrstring("PWM Control system ");
+    LCD_setcursor(2,0);
+    LCD_wrstring("Erik R, Caren Z");
+    NX3_writeleds(0xFF);
+    delay_msecs(2500);
+
+    LCD_clrd();
+    LCD_setcursor(1,0);
+    LCD_wrstring("Characterizing..");
+    //Run the LED characterization routine to establish sensor min's and max's
+    DoTest_Characterize();
+    LCD_setcursor(2,0);
+    LCD_wrstring("Done.");
+
+
+    NX3_writeleds(0x00);
+
+    delay_msecs(500);
+    //set initial screen
+    LCD_clrd();
+    LCD_setcursor(1,0);
+    LCD_wrstring("P___  I___  D___");
+    LCD_setcursor(2,0);
+    LCD_wrstring("SP:_.__  OFF:___");   
+    //LCD_shiftl();
     // main loop - there is no exit except by hardware reset
-	while (1)
-	{ 
-                //set Vin to min or max depending on switch 3 value 
-                if (btnsw & msk_SWITCH3) pwm_duty = MAX_DUTY;  
-                else                     pwm_duty = MIN_DUTY;	
+    while (1)
+    { 
+        //set Vin to min or max depending on switch 3 value 
+        if (btnsw & msk_SWITCH3) pwm_duty = MAX_DUTY;  
+        else                     pwm_duty = MIN_DUTY;	
 
-                // Write values to display when in "idle" state
-                no_test_LCD();
-                // TODO Allow users to move cursor and change values
-                param_select();
-		// read sw[1:0] to get the test to perform.
-		NX3_readBtnSw(&btnsw);
-		test = btnsw & (msk_SWITCH1 | msk_SWITCH0);
+        // Write values to display when in "idle" state
+        no_test_LCD();
+        // TODO Allow users to move cursor and change values
+        set_PID_vals();
+        // read sw[1:0] to get the test to perform.
+        NX3_readBtnSw(&btnsw);
+        test = btnsw & (msk_SWITCH1 | msk_SWITCH0);
 
-		if (test == TEST_T_CALLS)  // Reserved for something special.  Prepare to be awesome. 
-		{
-			// write the static info to display if necessary
-			// read rotary count and handle duty cycle changes
-			// limit duty cycle to between STEPDC_MIN and STEPDC_MAX
-			// PWM frequency does not change in this test
-			ROT_readRotcnt(&rotcnt);
-			if (rotcnt != old_rotcnt)
-			{
-                                //scale rotary count to setpoint values
-                                setpoint = MAX(VOLT_MIN, MIN(rotcnt/SETPOINT_SCALE, VOLT_MAX));
-				old_rotcnt = rotcnt;
-			}
-			DoTest_Track();
-			next_test = TEST_BANG;
-		} 
+        if (test == TEST_T_CALLS)  // Reserved for something special.  Prepare to be awesome. 
+        {
+            // write the static info to display if necessary
+            // read rotary count and handle duty cycle changes
+            // limit duty cycle to between STEPDC_MIN and STEPDC_MAX
+            // PWM frequency does not change in this test
+            ROT_readRotcnt(&rotcnt);
+            if (rotcnt != old_rotcnt)
+            {
+                //scale rotary count to setpoint values
+                setpoint = MAX(VOLT_MIN, MIN(rotcnt/SETPOINT_SCALE, VOLT_MAX));
+                old_rotcnt = rotcnt;
+            }
+            DoTest_Track();
+            next_test = TEST_BANG;
+        } 
 
 
-		else if ((test == TEST_BANG ) || (test == TEST_PID))  // Test 1 & 2 - control methods Bang Bang and PID 
-		{
-			Xfloat32	v;
-			char		s[20];	
-			
-			// write the static info to the display if necessary
-/*Running Test (rotary pushbutton pushed): Show which control algorithm is running and 
-display instructions for running test and uploading data.*/ 
-			if (test != next_test)
-			{
-				if (test == TEST_BANG)
-				{
-					strcpy(s, "|BANG|Press RBtn");
-				}
-				else
-				{
-					strcpy(s, "|PID|Press RBtn");
-				}
-				
-				LCD_clrd();
-				LCD_setcursor(1,0);
-				LCD_wrstring(s);
-				LCD_setcursor(2,0);
-				LCD_wrstring("LED OFF-Release ");
-			}
-			
-			// start the test on the rising edge of the Rotary Encoder button press
-			// the test will write the light detector samples into the global "sample[]"
-			// the samples will be sent to stdout when the Rotary Encoder button
-			// is released
-			//
-			// NOTE ON DETECTING BUTTON CHANGES:
-			// btnsw ^ old_btnsw will set the bits for all of the buttons and switches that
-			// have changed state since the last time the buttons and switches were read
-			// msk_BTN_ROT & btnsw will test whether the rotary encoder was one of the
-			// buttons that changed from 0 -> 1	
-                        // CHANGE: press button to start test, will automatically send across 
-			if ((btnsw ^ old_btnsw) && (msk_BTN_ROT & btnsw))  // do the step test and dump data  
-			{										
-				// light "Run" (rightmost) LED to show the test has begun
-				// and do the test.  The test will return when the measured samples array
-				// has been filled.  Turn off the rightmost LED after the data has been 
-				// captured to let the user know he/she can release the button
-				NX3_writeleds(0x01);
-				if (test == TEST_BANG)  // perform bang bang calculations 
-				{				
-				        calc_bang();
-				}
-				else  // perform PID tests 
-				{
-				        calc_PID();
-				}
-				NX3_writeleds(0x00);
+        else if ((test == TEST_BANG ) || (test == TEST_PID))  // Test 1 & 2 - control methods Bang Bang and PID 
+        {
+            Xfloat32	v;
+            char		s[20];	
 
-                                delay_msecs(10);
-                                LCD_setcursor(2,0);
-				LCD_wrstring("Hit RBtn to send");
+            // write the static info to the display if necessary
+            /*Running Test (rotary pushbutton pushed): Show which control algorithm is running and 
+              display instructions for running test and uploading data.*/ 
+            if (test != next_test)
+            {
+                if (test == TEST_BANG)
+                {
+                    strcpy(s, "|BANG|Press RBtn");
+                }
+                else
+                {
+                    strcpy(s, "|PID|Press RBtn");
+                }
 
-                                //FEATURE: wait for user input to send data over
-                                if (msk_BTN_ROT & btnsw)
-                                {
-                                    // light "Transfer" LED to indicate that data is being transmitted
-                                    // Show the traffic on the LCD
-                                    NX3_writeleds(0x02);
-                                    LCD_clrd();
-                                    LCD_setcursor(1, 0);
-                                    LCD_wrstring("Sending Data....");
-                                    LCD_setcursor(2, 0);
-                                    LCD_wrstring("S:    DATA:     ");
+                LCD_clrd();
+                LCD_setcursor(1,0);
+                LCD_wrstring(s);
+                LCD_setcursor(2,0);
+                LCD_wrstring("LED OFF-Release ");
+            }
 
-                                    // print the descriptive heading followed by the data
-                                    if (test == TEST_BANG)
-                                    {
-                                            xil_printf("\n\rBang Bang! Test Data\t\tAppx. Sample Interval: %d msec\n\r", frq_smple_interval);
-                                    }
-                                    else
-                                    {
-                                            xil_printf("\n\rPID Test Data\t\tAppx. Sample Interval: %d msec\n\r", frq_smple_interval);
-                                    }
-                                    
-                                    // trigger the serial charter program)
-                                    xil_printf("===STARTPLOT===\n");
+            // start the test on the rising edge of the Rotary Encoder button press
+            // the test will write the light detector samples into the global "sample[]"
+            // the samples will be sent to stdout when the Rotary Encoder button
+            // is released
+            //
+            // NOTE ON DETECTING BUTTON CHANGES:
+            // btnsw ^ old_btnsw will set the bits for all of the buttons and switches that
+            // have changed state since the last time the buttons and switches were read
+            // msk_BTN_ROT & btnsw will test whether the rotary encoder was one of the
+            // buttons that changed from 0 -> 1	
+            // CHANGE: press button to start test, will automatically send across 
+            if ((btnsw ^ old_btnsw) && (msk_BTN_ROT & btnsw))  // do the step test and dump data  
+            {										
+                // light "Run" (rightmost) LED to show the test has begun
+                // and do the test.  The test will return when the measured samples array
+                // has been filled.  Turn off the rightmost LED after the data has been 
+                // captured to let the user know he/she can release the button
+                NX3_writeleds(0x01);
+                if (test == TEST_BANG)  // perform bang bang calculations 
+                {				
+                    calc_bang();
+                }
+                else  // perform PID tests 
+                {
+                    calc_PID();
+                }
+                NX3_writeleds(0x00);
 
-                                    // start with the second sample.  The first sample is not representative of
-                                    // the data.  This will pretty-up the graph a bit								
-                                    for (smpl_idx = 1; smpl_idx < NUM_FRQ_SAMPLES; smpl_idx++)
-                                    {
-                                            u16 count;
-                                            
-                                            count = sample[smpl_idx];
-                                            
-                                            //Convert from count to 'volts'
-                                            v = LIGHTSENSOR_Count2Volts(count); 
-                                            
-                                            voltstostrng(v, s);
-                                            xil_printf("%d\t%d\t%s\n\r", smpl_idx, count, s);
-                                            
-                                            LCD_setcursor(2, 2);
-                                            LCD_wrstring("   ");
-                                            LCD_setcursor(2, 2);
-                                            LCD_putnum(smpl_idx, 10);
-                                            LCD_setcursor(2, 11);
-                                            LCD_wrstring("     ");
-                                            LCD_setcursor(2, 11);
-                                            LCD_putnum(count, 10);
-                                    }
-                                    
-                                    // stop the serial charter program				
-                                    xil_printf("===ENDPLOT===\n");
-                                    
-                                    NX3_writeleds(0x00);
-                                    old_btnsw = btnsw;								
-                                    next_test = TEST_INVALID;			
-                                }
-			}  // do the step test and dump data
-			else
-			{
-				next_test = test;
-			}
-		}
-		else if (test == TEST_CHARACTERIZE)  // Test 3 - Characterize Response
-		{
-			if (test != next_test)
-			{				
-				LCD_clrd();
-				LCD_setcursor(1,0);
-				LCD_wrstring("|CHAR|Press RBtn");
-				LCD_setcursor(2,0);
-				LCD_wrstring("LED OFF-Release ");
-			}
-			// start the test on the rising edge of the Rotary Encoder button press
-			// the test will write the samples into the global "sample[]"
-			// the samples will be sent to stdout when the Rotary Encoder button
-			// is released
-			if ((btnsw ^ old_btnsw) && (msk_BTN_ROT & btnsw))  // do the step test and dump data  
-			{
-				// light "Run" (rightmost) LED to show the test has begun
-				// and do the test.  The test will return when the measured samples array
-				// has been filled.  Turn off the rightmost LED after the data has been
-				// captured to let the user know he/she can release the button
-				NX3_writeleds(0x01);			
-				DoTest_Characterize();
-				NX3_writeleds(0x00);
-				
-				// wait for the Rotary Encoder button to be released
-				// and then send the sample data to stdout
-				do
-				{
-					NX3_readBtnSw(&btnsw);
-					delay_msecs(10);
-				} while ((btnsw & msk_BTN_ROT) == 0x80);
-				
-				// light "Transfer" LED to indicate that data is being transmitted
-				// Show the traffic on the LCD
-				NX3_writeleds(0x02);
-				LCD_clrd();
-				LCD_setcursor(1, 0);
-				LCD_wrstring("Sending Data....");
-				LCD_setcursor(2, 0);
-				LCD_wrstring("S:    DATA:     ");
+                delay_msecs(10);
+                LCD_setcursor(2,0);
+                LCD_wrstring("Hit RBtn to send");
 
-				xil_printf("\n\rCharacterization Test Data\t\tAppx. Sample Interval: %d msec\n\r", frq_smple_interval);
+                //FEATURE: wait for user input to send data over
+                if (msk_BTN_ROT & btnsw)
+                {
+                    // light "Transfer" LED to indicate that data is being transmitted
+                    // Show the traffic on the LCD
+                    NX3_writeleds(0x02);
+                    LCD_clrd();
+                    LCD_setcursor(1, 0);
+                    LCD_wrstring("Sending Data....");
+                    LCD_setcursor(2, 0);
+                    LCD_wrstring("S:    DATA:     ");
 
-				// trigger the serial charter program)
-				xil_printf("===STARTPLOT===\n\r");
-				
-				for (smpl_idx = STEPDC_MIN; smpl_idx <= STEPDC_MAX; smpl_idx++)
-				{
-					u16 		count;
-					Xfloat32	v;
-					char		s[10]; 
-					
-					count = sample[smpl_idx];
-					
-                                        //Convert from count to 'volts'
-                                        //NOTES: different types (Xuint32)
-                                        v = LIGHTSENSOR_Count2Volts((Xuint32) count); 
-					
-					voltstostrng(v, s);
-					xil_printf("%d\t%d\t%s\n\r", smpl_idx, count, s);
+                    // print the descriptive heading followed by the data
+                    if (test == TEST_BANG)
+                    {
+                        xil_printf("\n\rBang Bang! Test Data\t\tAppx. Sample Interval: %d msec\n\r", frq_smple_interval);
+                    }
+                    else
+                    {
+                        xil_printf("\n\rPID Test Data\t\tAppx. Sample Interval: %d msec\n\r", frq_smple_interval);
+                    }
 
-					LCD_setcursor(2, 2);
-					LCD_wrstring("   ");
-					LCD_setcursor(2, 2);
-					LCD_putnum(smpl_idx, 10);
-					LCD_setcursor(2, 11);
-					LCD_wrstring("     ");
-					LCD_setcursor(2, 11);
-					LCD_putnum(count, 10);
-				}
+                    // trigger the serial charter program)
+                    xil_printf("===STARTPLOT===\n");
 
-				// stop the serial charter program				
-				xil_printf("===ENDPLOT===\n\r");
-				
-				NX3_writeleds(0x00);
-				old_btnsw = btnsw;								
-				next_test = TEST_INVALID;
-			}  // do the step test and dump data
-			else
-			{
-				next_test = test;
-			}
-		} // Test 3 - Characterize Response
-		else  // outside the current test range - blink LED's and hang
-		{
-			// should never get here but just in case
-			NX3_writeleds(0xFF);
-			delay_msecs(2000);
-			NX3_writeleds(0x00);
-		}
-		// wait a bit and start again
-		delay_msecs(100);			 								
-	}  // while(1) loop
- }  // end main()
+                    // start with the second sample.  The first sample is not representative of
+                    // the data.  This will pretty-up the graph a bit								
+                    for (smpl_idx = 1; smpl_idx < NUM_FRQ_SAMPLES; smpl_idx++)
+                    {
+                        u16 count;
 
- 
+                        count = sample[smpl_idx];
+
+                        //Convert from count to 'volts'
+                        v = LIGHTSENSOR_Count2Volts(count); 
+
+                        voltstostrng(v, s);
+                        xil_printf("%d\t%d\t%s\n\r", smpl_idx, count, s);
+
+                        LCD_setcursor(2, 2);
+                        LCD_wrstring("   ");
+                        LCD_setcursor(2, 2);
+                        LCD_putnum(smpl_idx, 10);
+                        LCD_setcursor(2, 11);
+                        LCD_wrstring("     ");
+                        LCD_setcursor(2, 11);
+                        LCD_putnum(count, 10);
+                    }
+
+                    // stop the serial charter program				
+                    xil_printf("===ENDPLOT===\n");
+
+                    NX3_writeleds(0x00);
+                    old_btnsw = btnsw;								
+                    next_test = TEST_INVALID;			
+                }
+            }  // do the step test and dump data
+            else
+            {
+                next_test = test;
+            }
+        }
+        else if (test == TEST_CHARACTERIZE)  // Test 3 - Characterize Response
+        {
+            if (test != next_test)
+            {				
+                LCD_clrd();
+                LCD_setcursor(1,0);
+                LCD_wrstring("|CHAR|Press RBtn");
+                LCD_setcursor(2,0);
+                LCD_wrstring("LED OFF-Release ");
+            }
+            // start the test on the rising edge of the Rotary Encoder button press
+            // the test will write the samples into the global "sample[]"
+            // the samples will be sent to stdout when the Rotary Encoder button
+            // is released
+            if ((btnsw ^ old_btnsw) && (msk_BTN_ROT & btnsw))  // do the step test and dump data  
+            {
+                // light "Run" (rightmost) LED to show the test has begun
+                // and do the test.  The test will return when the measured samples array
+                // has been filled.  Turn off the rightmost LED after the data has been
+                // captured to let the user know he/she can release the button
+                NX3_writeleds(0x01);			
+                DoTest_Characterize();
+                NX3_writeleds(0x00);
+
+                // wait for the Rotary Encoder button to be released
+                // and then send the sample data to stdout
+                do
+                {
+                    NX3_readBtnSw(&btnsw);
+                    delay_msecs(10);
+                } while ((btnsw & msk_BTN_ROT) == 0x80);
+
+                // light "Transfer" LED to indicate that data is being transmitted
+                // Show the traffic on the LCD
+                NX3_writeleds(0x02);
+                LCD_clrd();
+                LCD_setcursor(1, 0);
+                LCD_wrstring("Sending Data....");
+                LCD_setcursor(2, 0);
+                LCD_wrstring("S:    DATA:     ");
+
+                xil_printf("\n\rCharacterization Test Data\t\tAppx. Sample Interval: %d msec\n\r", frq_smple_interval);
+
+                // trigger the serial charter program)
+                xil_printf("===STARTPLOT===\n\r");
+
+                for (smpl_idx = STEPDC_MIN; smpl_idx <= STEPDC_MAX; smpl_idx++)
+                {
+                    u16 		count;
+                    Xfloat32	v;
+                    char		s[10]; 
+
+                    count = sample[smpl_idx];
+
+                    //Convert from count to 'volts'
+                    //NOTES: different types (Xuint32)
+                    v = LIGHTSENSOR_Count2Volts((Xuint32) count); 
+
+                    voltstostrng(v, s);
+                    xil_printf("%d\t%d\t%s\n\r", smpl_idx, count, s);
+
+                    LCD_setcursor(2, 2);
+                    LCD_wrstring("   ");
+                    LCD_setcursor(2, 2);
+                    LCD_putnum(smpl_idx, 10);
+                    LCD_setcursor(2, 11);
+                    LCD_wrstring("     ");
+                    LCD_setcursor(2, 11);
+                    LCD_putnum(count, 10);
+                }
+
+                // stop the serial charter program				
+                xil_printf("===ENDPLOT===\n\r");
+
+                NX3_writeleds(0x00);
+                old_btnsw = btnsw;								
+                next_test = TEST_INVALID;
+            }  // do the step test and dump data
+            else
+            {
+                next_test = test;
+            }
+        } // Test 3 - Characterize Response
+        else  // outside the current test range - blink LED's and hang
+        {
+            // should never get here but just in case
+            NX3_writeleds(0xFF);
+            delay_msecs(2000);
+            NX3_writeleds(0x00);
+        }
+        // wait a bit and start again
+        delay_msecs(100);			 								
+    }  // while(1) loop
+}  // end main()
+
+
 /*********************************************/
 /*             Test Functions                */
 /*********************************************/
@@ -590,11 +591,11 @@ void no_test_LCD()
  * calculations (Proportional, Integral, and Derivative). This ultimately allows for
  * fine-tuning of the values to achieve the best results. 
  *
- * The set_PID_val() function reads the north pushbutton, changes the control method 
+ * The set_PID_vals() function reads the north pushbutton, changes the control method 
  * (P,I,D) as necessary,and increments/decrements that offset based on the east and 
  * west pushbuttons. It updates the global offset values and displays the new values
  * to the screen.
-**************************************************************************************/
+ **************************************************************************************/
 
 void set_PID_vals()
 {
@@ -603,11 +604,11 @@ void set_PID_vals()
     // Set which control measurement we're using
     if (btnsw & msk_BTN_NORTH)
     {
-         // increment to the next selection.  If we're at the last enum, set it to the 1st (proportional)
-         if (PID_current_sel == OFFSET) PID_current_sel = PROPORTIONAL; 
-         else PID_current_sel = Control_t((int)(PID_current_sel+1));  //casting to allow increment
+        // increment to the next selection.  If we're at the last enum, set it to the 1st (proportional)
+        if (PID_current_sel == OFFSET) PID_current_sel = PROPORTIONAL; 
+        else PID_current_sel = Control_t((int)(PID_current_sel+1));  //casting to allow increment
 
-         // cursor control logic
+        // cursor control logic
         if (PID_current_sel == PROPORTIONAL)                                    row  = col = 1;
         else if (PID_current_sel == INTEGRAL || PID_current_sel == DERIVATIVE)  col += 6; 
         else if (PID_current_sel == OFFSET)                                     row  = 2; 
@@ -616,12 +617,12 @@ void set_PID_vals()
     //TODO LCD_docmd(...);
     LCD_setcursor(row,col);
     //LCD_docmd(...);
-       
+
     // FEATURE: test array, correct increments 
-    // if (btnsw & msk_BTN_WEST)   ++PID_offset[PID_current_sel];
-    // if (btnsw & msk_BTN_EAST)   --PID_offset[PID_current_sel];  
+    // if (btnsw & msk_BTN_WEST)   ++PID_gain[PID_current_sel];
+    // if (btnsw & msk_BTN_EAST)   --PID_gain[PID_current_sel];  
     // special case for offset
-    
+
     if (btnsw & msk_BTN_WEST)
     {
         if (PID_current_sel == PROPORTIONAL)     prop_gain     += GAIN_INCREMENT;
@@ -638,8 +639,7 @@ void set_PID_vals()
     }
 
 
-// TODO: ALL LCD display stuff 
-// void update_lcd(int vin_dccnt, short frqcnt)
+    // TODO: ALL LCD display stuff 
 }
 
 /*************************************************************************************
@@ -648,7 +648,7 @@ void set_PID_vals()
  * the desired setpoint value (established before the start of the test).  If the
  * current reading is lower than the setpoint, it puts the PWM at the maximum duty
  * cycle.  IF it's above, it puts the PWM output to the minimum duty.
-*************************************************************************************/
+ *************************************************************************************/
 
 void calc_bang()
 {
@@ -691,8 +691,8 @@ void calc_bang()
  * It takes the reading from the light sensor, scales it appropriately, calculates
  * the proportional value, converts to duty and outputs the value to the PWM params.
  * WARNING: Might be completely useless
-**************************************************************************************/
-    
+ **************************************************************************************/
+
 void calc_prop()
 {
     u16 duty_out;
@@ -734,7 +734,7 @@ void calc_prop()
  * This method calculates the voltage that should be output to the PWM peripheral.  
  * It takes the reading from the light sensor, scales it appropriately, calculates
  * the P, I, and D values, and outputs the value to the PWM params.
-**************************************************************************************/
+ **************************************************************************************/
 
 void calc_PID()
 {
@@ -795,37 +795,37 @@ void calc_PID()
  *****/ 
 XStatus DoTest_Track(void)
 {
-	static int		old_pwm_freq = 0;			// old pwm_frequency and duty cycle
-	static int		old_pwm_duty = 200;			// these values will force the initial display	
-	u16				frq_cnt;					// light detector counts to display
-	XStatus			Status;						// Xilinx return status
-	unsigned		tss;						// starting timestamp			
+    static int		old_pwm_freq = 0;			// old pwm_frequency and duty cycle
+    static int		old_pwm_duty = 200;			// these values will force the initial display	
+    u16				frq_cnt;					// light detector counts to display
+    XStatus			Status;						// Xilinx return status
+    unsigned		tss;						// starting timestamp			
 
-	if ((pwm_freq != old_pwm_freq) || (pwm_duty != old_pwm_duty))
-	{	
-		// set the new PWM parameters - PWM_SetParams stops the timer
-		Status = PWM_SetParams(&PWMTimerInst, pwm_freq, pwm_duty);
-		if (Status == XST_SUCCESS)
-		{							
-			PWM_Start(&PWMTimerInst);
-		}
+    if ((pwm_freq != old_pwm_freq) || (pwm_duty != old_pwm_duty))
+    {	
+        // set the new PWM parameters - PWM_SetParams stops the timer
+        Status = PWM_SetParams(&PWMTimerInst, pwm_freq, pwm_duty);
+        if (Status == XST_SUCCESS)
+        {							
+            PWM_Start(&PWMTimerInst);
+        }
 
-		tss = timestamp;	
-		
-                //make the light sensor measurement
-                //NOTES: BaseAddress yet to be defined from embsys 
-		frq_cnt = LIGHTSENSOR_Capture(BaseAddress, slope, offset, is_scaled);
-		
-		delay_msecs(1);
-		frq_smple_interval = timestamp - tss;
-				
-		// update the display and save the frequency and duty
-		// cycle for next time
-		update_lcd(pwm_duty, frq_cnt);
-		old_pwm_freq = pwm_freq;
-		old_pwm_duty = pwm_duty;
-	}
-	return XST_SUCCESS;
+        tss = timestamp;	
+
+        //make the light sensor measurement
+        //NOTES: BaseAddress yet to be defined from embsys 
+        frq_cnt = LIGHTSENSOR_Capture(BaseAddress, slope, offset, is_scaled);
+
+        delay_msecs(1);
+        frq_smple_interval = timestamp - tss;
+
+        // update the display and save the frequency and duty
+        // cycle for next time
+        update_lcd(pwm_duty, frq_cnt);
+        old_pwm_freq = pwm_freq;
+        old_pwm_duty = pwm_duty;
+    }
+    return XST_SUCCESS;
 }
 
 
@@ -841,58 +841,58 @@ XStatus DoTest_Track(void)
  *****/ 
 XStatus DoTest_Step(int dc_start)
 {	
-	XStatus		Status;					// Xilinx return status
-	unsigned	tss;					// starting timestamp
-	u16			frq_cnt;				// measured counts to display
-		
-	// stabilize the PWM output (and thus the lamp intensity) before
-	// starting the test
-	Status = PWM_SetParams(&PWMTimerInst, pwm_freq, dc_start);
-	if (Status == XST_SUCCESS)
-	{							
-		PWM_Start(&PWMTimerInst);
-	}
-	else
-	{
-		return XST_FAILURE;
-	}
-	//Wait for the LED output to settle before starting
+    XStatus		Status;					// Xilinx return status
+    unsigned	tss;					// starting timestamp
+    u16			frq_cnt;				// measured counts to display
+
+    // stabilize the PWM output (and thus the lamp intensity) before
+    // starting the test
+    Status = PWM_SetParams(&PWMTimerInst, pwm_freq, dc_start);
+    if (Status == XST_SUCCESS)
+    {							
+        PWM_Start(&PWMTimerInst);
+    }
+    else
+    {
+        return XST_FAILURE;
+    }
+    //Wait for the LED output to settle before starting
     delay_msecs(1500);
-		
-	if (dc_start > STEPDC_MAX / 2)
-	{
-		 Status = PWM_SetParams(&PWMTimerInst, pwm_freq, STEPDC_MIN); 
-	}
-	else
-	{
-		 Status = PWM_SetParams(&PWMTimerInst, pwm_freq, STEPDC_MAX); 
-	}		
-	if (Status == XST_SUCCESS)
-	{							
-		PWM_Start(&PWMTimerInst);
-		pwm_duty = dc_start;
-	}
-	else
-	{
-		return XST_FAILURE;
-	}
-	
-	// gather the samples
-	smpl_idx = 0;
-	tss = timestamp;
-	while (smpl_idx < NUM_FRQ_SAMPLES)
-	{
-	
-            //QUESTION: Why is this still here if we don't step?
+
+    if (dc_start > STEPDC_MAX / 2)
+    {
+        Status = PWM_SetParams(&PWMTimerInst, pwm_freq, STEPDC_MIN); 
+    }
+    else
+    {
+        Status = PWM_SetParams(&PWMTimerInst, pwm_freq, STEPDC_MAX); 
+    }		
+    if (Status == XST_SUCCESS)
+    {							
+        PWM_Start(&PWMTimerInst);
+        pwm_duty = dc_start;
+    }
+    else
+    {
+        return XST_FAILURE;
+    }
+
+    // gather the samples
+    smpl_idx = 0;
+    tss = timestamp;
+    while (smpl_idx < NUM_FRQ_SAMPLES)
+    {
+
+        //QUESTION: Why is this still here if we don't step?
         //make the light sensor measurement
-		sample[smpl_idx++] = LIGHTSENSOR_Capture(BaseAddress, slope, offset, is_scaled);
-		
-	}		
-	frq_smple_interval = (timestamp - tss) / NUM_FRQ_SAMPLES;
-	return XST_SUCCESS;
+        sample[smpl_idx++] = LIGHTSENSOR_Capture(BaseAddress, slope, offset, is_scaled);
+
+    }		
+    frq_smple_interval = (timestamp - tss) / NUM_FRQ_SAMPLES;
+    return XST_SUCCESS;
 }
-	
-	
+
+
 /*****
  * DoTest_Characterize() - Perform the Characterization test
  * 
@@ -907,56 +907,56 @@ XStatus DoTest_Step(int dc_start)
  *****/
 XStatus DoTest_Characterize(void)
 {
-	XStatus		Status;					// Xilinx return status
-	unsigned	tss;					// starting timestamp
-	u16		frq_cnt;				// counts to display
-	int		n;					// number of samples
-	Xuint32		freq, dutyfactor;		// current frequency and duty factor
-        Xuint32         freq_max_cnt = 0;
-        Xuint32         freq_min_cnt = 4095;
-        int             i = 0;
+    XStatus		Status;					// Xilinx return status
+    unsigned	tss;					// starting timestamp
+    u16		frq_cnt;				// counts to display
+    int		n;					// number of samples
+    Xuint32		freq, dutyfactor;		// current frequency and duty factor
+    Xuint32         freq_max_cnt = 0;
+    Xuint32         freq_min_cnt = 4095;
+    int             i = 0;
 
 
-	// stabilize the PWM output (and thus the lamp intensity) at the
-	// minimum before starting the test
-        // QUESTION: PWM_STEPDC_MIN doesn't exist...
-	pwm_duty = STEPDC_MIN;
-	Status = PWM_SetParams(&PWMTimerInst, pwm_freq, pwm_duty);
-	if (Status == XST_SUCCESS)
-	{							
-		PWM_Start(&PWMTimerInst);
-	}
-	else
-	{
-		return -1;
-	}
-	//Wait for the LED output to settle before starting
+    // stabilize the PWM output (and thus the lamp intensity) at the
+    // minimum before starting the test
+    // QUESTION: PWM_STEPDC_MIN doesn't exist...
+    pwm_duty = STEPDC_MIN;
+    Status = PWM_SetParams(&PWMTimerInst, pwm_freq, pwm_duty);
+    if (Status == XST_SUCCESS)
+    {							
+        PWM_Start(&PWMTimerInst);
+    }
+    else
+    {
+        return -1;
+    }
+    //Wait for the LED output to settle before starting
     delay_msecs(1500);
-		
-	// sweep the duty cycle from STEPDC_MIN to STEPDC_MAX
-	smpl_idx = STEPDC_MIN;
-	n = 0;
-	tss = timestamp;
-	while (smpl_idx <= STEPDC_MAX)
-	{
-		Status = PWM_SetParams(&PWMTimerInst, pwm_freq, smpl_idx);
-		if (Status == XST_SUCCESS)
-		{							
-			PWM_Start(&PWMTimerInst);
-		}
-		else
-		{
-			return -1;
-		}
-		
-                //ECE544 Students:
-                // make the light sensor measurement
-		sample[smpl_idx++] = LIGHTSENSOR_Capture(BaseAddress, slope, offset, 0);
-		
-		n++;
-		delay_msecs(50);
-	}		
-	frq_smple_interval = (timestamp - tss) / smpl_idx;
+
+    // sweep the duty cycle from STEPDC_MIN to STEPDC_MAX
+    smpl_idx = STEPDC_MIN;
+    n = 0;
+    tss = timestamp;
+    while (smpl_idx <= STEPDC_MAX)
+    {
+        Status = PWM_SetParams(&PWMTimerInst, pwm_freq, smpl_idx);
+        if (Status == XST_SUCCESS)
+        {							
+            PWM_Start(&PWMTimerInst);
+        }
+        else
+        {
+            return -1;
+        }
+
+        //ECE544 Students:
+        // make the light sensor measurement
+        sample[smpl_idx++] = LIGHTSENSOR_Capture(BaseAddress, slope, offset, 0);
+
+        n++;
+        delay_msecs(50);
+    }		
+    frq_smple_interval = (timestamp - tss) / smpl_idx;
 
     //ECE544 Students:
     //Find the min and max values and set the scaling/offset factors to use for your convert to 'voltage' function.
@@ -973,14 +973,14 @@ XStatus DoTest_Characterize(void)
             freq_max_cnt = sample[i];
         }
     }
-    
+
     // Send min and max to set scaling and calculate slope and offset
     LIGHTSENSOR_SetScaling(freq_min_cnt, freq_max_cnt, &slope, &offset)
-    return n;
+        return n;
 }
 
-	
-	
+
+
 /*********************************************/
 /*            Support Functions              */
 /*********************************************/
@@ -993,71 +993,71 @@ XStatus DoTest_Characterize(void)
  *****/
 XStatus do_init(void)
 {
-	XStatus 	Status;				// status from Xilinx Lib calls	
-	
-	// initialize the N3EIF hardware and driver
-	// rotary encoder is set to increment duty cycle from 0 by 5 w/
-	// no negative counts
- 	N3EIF_init(N3EIF_BASEADDR);
- 	ROT_init(DUTY_CYCLE_CHANGE, true);
-	ROT_clear();
+    XStatus 	Status;				// status from Xilinx Lib calls	
 
-	// initialize the GPIO instance
-	Status = XGpio_Initialize(&GPIOInst, GPIO_DEVICE_ID);
-	if (Status != XST_SUCCESS)
-	{
-		return XST_FAILURE;
-	}
-	// GPIO channel 1 is an 8-bit output port that your application can
-	// use.  None of the bits are used by this program
-	XGpio_SetDataDirection(&GPIOInst, GPIO_OUTPUT_CHANNEL, 0xF0);
-	XGpio_DiscreteWrite(&GPIOInst, GPIO_OUTPUT_CHANNEL, gpio_port);
-	
-			
-	// initialize the PWM timer/counter instance but do not start it
-	// do not enable PWM interrupts
-	Status = PWM_Initialize(&PWMTimerInst, PWM_TIMER_DEVICE_ID, false);
-	if (Status != XST_SUCCESS)
-	{
-		return XST_FAILURE;
-	}
-	
-    //ECE544 Students:
-    //Initialize LIGHTSABER peripheral 
-    //TODO: Get macro for BaseAddress
-    LIGHTSENSOR_Init(BaseAddress);
-			
-	// initialize the interrupt controller
-	Status = XIntc_Initialize(&IntrptCtlrInst,INTC_DEVICE_ID);
-    if (Status != XST_SUCCESS)
-    {
-       return XST_FAILURE;
-    }
+    // initialize the N3EIF hardware and driver
+    // rotary encoder is set to increment duty cycle from 0 by 5 w/
+    // no negative counts
+    N3EIF_init(N3EIF_BASEADDR);
+    ROT_init(DUTY_CYCLE_CHANGE, true);
+    ROT_clear();
 
-	// connect the fixed interval timer (FIT) handler to the interrupt
-    Status = XIntc_Connect(&IntrptCtlrInst, FIT_INTERRUPT_ID,
-                           (XInterruptHandler)FIT_Handler,
-                           (void *)0);
+    // initialize the GPIO instance
+    Status = XGpio_Initialize(&GPIOInst, GPIO_DEVICE_ID);
     if (Status != XST_SUCCESS)
     {
         return XST_FAILURE;
     }
- 
- 	// start the interrupt controller such that interrupts are enabled for
-	// all devices that cause interrupts, specifically real mode so that
-	// the the  FIT can cause interrupts thru the interrupt controller.
+    // GPIO channel 1 is an 8-bit output port that your application can
+    // use.  None of the bits are used by this program
+    XGpio_SetDataDirection(&GPIOInst, GPIO_OUTPUT_CHANNEL, 0xF0);
+    XGpio_DiscreteWrite(&GPIOInst, GPIO_OUTPUT_CHANNEL, gpio_port);
+
+
+    // initialize the PWM timer/counter instance but do not start it
+    // do not enable PWM interrupts
+    Status = PWM_Initialize(&PWMTimerInst, PWM_TIMER_DEVICE_ID, false);
+    if (Status != XST_SUCCESS)
+    {
+        return XST_FAILURE;
+    }
+
+    //ECE544 Students:
+    //Initialize LIGHTSABER peripheral 
+    //TODO: Get macro for BaseAddress
+    LIGHTSENSOR_Init(BaseAddress);
+
+    // initialize the interrupt controller
+    Status = XIntc_Initialize(&IntrptCtlrInst,INTC_DEVICE_ID);
+    if (Status != XST_SUCCESS)
+    {
+        return XST_FAILURE;
+    }
+
+    // connect the fixed interval timer (FIT) handler to the interrupt
+    Status = XIntc_Connect(&IntrptCtlrInst, FIT_INTERRUPT_ID,
+            (XInterruptHandler)FIT_Handler,
+            (void *)0);
+    if (Status != XST_SUCCESS)
+    {
+        return XST_FAILURE;
+    }
+
+    // start the interrupt controller such that interrupts are enabled for
+    // all devices that cause interrupts, specifically real mode so that
+    // the the  FIT can cause interrupts thru the interrupt controller.
     Status = XIntc_Start(&IntrptCtlrInst, XIN_REAL_MODE);
     if (Status != XST_SUCCESS)
     {
         return XST_FAILURE;
     } 
-      
- 	// enable the FIT interrupt
+
+    // enable the FIT interrupt
     XIntc_Enable(&IntrptCtlrInst, FIT_INTERRUPT_ID);	
-	return XST_SUCCESS;
+    return XST_SUCCESS;
 }
-		
-		
+
+
 
 /*****
  * delay_msecs() - delay execution for "n" msecs
@@ -1070,17 +1070,17 @@ XStatus do_init(void)
  *****/
 void delay_msecs(u32 msecs)
 {
-	unsigned long target;
+    unsigned long target;
 
-	if ( msecs == 0 )
-	{
-		return;
-	}
-	target = timestamp + msecs;
-	while ( timestamp != target )
-	{
-		// spin until delay is over
-	}
+    if ( msecs == 0 )
+    {
+        return;
+    }
+    target = timestamp + msecs;
+    while ( timestamp != target )
+    {
+        // spin until delay is over
+    }
 }
 
 
@@ -1095,65 +1095,65 @@ void delay_msecs(u32 msecs)
  *	
  * NOTE:  Assumes that s points to an array of at least 6 bytes.	
  *****/
- void	voltstostrng(Xfloat32 v, char* s)
- {
-	Xfloat32	dpf, ipf;
-	Xuint32		dpi;	
-	Xuint32		ones, tenths, hundredths;
+void	voltstostrng(Xfloat32 v, char* s)
+{
+    Xfloat32	dpf, ipf;
+    Xuint32		dpi;	
+    Xuint32		ones, tenths, hundredths;
 
-	 // form the fixed digits 
-	 dpf = modff(v, &ipf);
-	 dpi = dpf * 100;
-	 ones = abs(ipf) + '0';
-	 tenths = (dpi / 10) + '0';
-	 hundredths = (dpi - ((tenths - '0') * 10)) + '0';
-	 
-	 // form the string and return
-	 *s++ = ipf == 0 ? ' ' : (ipf > 0 ? '+' : '-');
-	 *s++ = (char) ones;
-	 *s++ = '.';
-	 *s++ = (char) tenths;
-	 *s++ = (char) hundredths;
-	 *s   = 0;
-	 return;
- }
-	  
-	 
- /*****
-  * update_lcd() - update the LCD display with a new count and voltage
-  *
-  * writes the display with new information.  "vin_dccnt" is the  unsigned PWM duty
-  * cycle and "frqcnt" is the signed frq_count.  The function assumes that the
-  * static portion of the display has been written and that the dynamic portion of
-  * the display is the same for all tests
-  *****/
- void update_lcd(int vin_dccnt, short frqcnt)
- {
- 	Xfloat32	v;
- 	char		s[10];
+    // form the fixed digits 
+    dpf = modff(v, &ipf);
+    dpi = dpf * 100;
+    ones = abs(ipf) + '0';
+    tenths = (dpi / 10) + '0';
+    hundredths = (dpi - ((tenths - '0') * 10)) + '0';
 
- 	// update the PWM data
- 	v = vin_dccnt * .01 * PWM_VIN;
- 	voltstostrng(v, s);
- 	LCD_setcursor(1, 11);
- 	LCD_wrstring("      ");
- 	LCD_setcursor(1, 11);
- 	LCD_wrstring(s);
+    // form the string and return
+    *s++ = ipf == 0 ? ' ' : (ipf > 0 ? '+' : '-');
+    *s++ = (char) ones;
+    *s++ = '.';
+    *s++ = (char) tenths;
+    *s++ = (char) hundredths;
+    *s   = 0;
+    return;
+}
 
- 	// update the data
+
+/*****
+ * update_lcd() - update the LCD display with a new count and voltage
+ *
+ * writes the display with new information.  "vin_dccnt" is the  unsigned PWM duty
+ * cycle and "frqcnt" is the signed frq_count.  The function assumes that the
+ * static portion of the display has been written and that the dynamic portion of
+ * the display is the same for all tests
+ *****/
+void update_lcd(int vin_dccnt, short frqcnt)
+{
+    Xfloat32	v;
+    char		s[10];
+
+    // update the PWM data
+    v = vin_dccnt * .01 * PWM_VIN;
+    voltstostrng(v, s);
+    LCD_setcursor(1, 11);
+    LCD_wrstring("      ");
+    LCD_setcursor(1, 11);
+    LCD_wrstring(s);
+
+    // update the data
     // ECE544 Students: Convert frequency count to 'volts'
-        v = LIGHTSENSOR_Count2Volts(frqcnt); 
- 	voltstostrng(v, s);
- 	LCD_setcursor(2, 3);
- 	LCD_wrstring("     ");
- 	LCD_setcursor(2, 3);
- 	LCD_wrstring(s);
- 	LCD_setcursor(2, 11);
- 	LCD_wrstring("     ");
- 	LCD_setcursor(2, 11);
- 	LCD_putnum(frqcnt, 10);
- 	return;
- }
+    v = LIGHTSENSOR_Count2Volts(frqcnt); 
+    voltstostrng(v, s);
+    LCD_setcursor(2, 3);
+    LCD_wrstring("     ");
+    LCD_setcursor(2, 3);
+    LCD_wrstring(s);
+    LCD_setcursor(2, 11);
+    LCD_wrstring("     ");
+    LCD_setcursor(2, 11);
+    LCD_putnum(frqcnt, 10);
+    return;
+}
 
 
 /*********************************************/
@@ -1168,13 +1168,13 @@ void delay_msecs(u32 msecs)
  *****/
 void FIT_Handler(void)
 {	
-	static	int			ts_interval = 0;			// interval counter for incrementing timestamp
-			
-	// update timestamp	
-	ts_interval++;	
-	if (ts_interval > FIT_COUNT_1MSEC)
-	{
-		timestamp++;
-		ts_interval = 1;
-	}
+    static	int			ts_interval = 0;			// interval counter for incrementing timestamp
+
+    // update timestamp	
+    ts_interval++;	
+    if (ts_interval > FIT_COUNT_1MSEC)
+    {
+        timestamp++;
+        ts_interval = 1;
+    }
 }	
