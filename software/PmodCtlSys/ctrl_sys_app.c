@@ -296,7 +296,6 @@ int main()
 
         // Write values to display when in "idle" state
         no_test_LCD();
-        // TODO Allow users to move cursor and change values
         set_PID_vals();
         // read sw[1:0] to get the test to perform.
         NX3_readBtnSw(&btnsw);
@@ -614,14 +613,19 @@ void set_PID_vals()
         else if (PID_current_sel == OFFSET)                                     row  = 2; 
     }
 
-    //TODO LCD_docmd(...);
+    //set cursor location and turn on cursor 
     LCD_setcursor(row,col);
-    //LCD_docmd(...);
+    LCD_docmd(LCD_CMD_DISPLAY, LCD_CURSOR_ON);
+    //LCD_docmd(LCD_CMD_DISPLAY, LCD_CURSOR_OFF);
 
     // FEATURE: test array, correct increments 
     // if (btnsw & msk_BTN_WEST)   ++PID_gain[PID_current_sel];
     // if (btnsw & msk_BTN_EAST)   --PID_gain[PID_current_sel];  
-    // special case for offset
+   
+    // if incrementing more than 1:
+    // if (btnsw & msk_BTN_WEST)   ++PID_gain[PID_current_sel] += GAIN_INCREMENT ;
+    // if (btnsw & msk_BTN_EAST)   --PID_gain[PID_current_sel] -= GAIN_INCREMENT ; 
+    // special case for offset?
 
     if (btnsw & msk_BTN_WEST)
     {
@@ -637,9 +641,6 @@ void set_PID_vals()
         else if (PID_current_sel == DERIVATIVE)  deriv_gain    -= GAIN_INCREMENT;
         else                                     offset        -= GAIN_INCREMENT; 
     }
-
-
-    // TODO: ALL LCD display stuff 
 }
 
 /*************************************************************************************
