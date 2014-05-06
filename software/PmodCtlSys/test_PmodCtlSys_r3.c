@@ -63,8 +63,8 @@
 #include "pwm_tmrctr.h"
 #include "mb_interface.h"
 
-//ECE544 Students: 
-//#include "YOUR_PERIPHERAL_DRIVER.h"
+// light sensor peripheral driver
+#include "lightsensor.h"
 
 /************************** Macros and Constants ******************************/
 // Microblaze Cache Parameters
@@ -112,6 +112,7 @@
 
 // Light Sensor Peripheral parameters
 // Add whatever constants you need to use your Light Sensor peripheral driver
+#define LIGHTSENSOR_BASEADDR	XPAR_LIGHTSENSOR_0_BASEADDR
 
 // sample settings	
 #define NUM_FRQ_SAMPLES			250	
@@ -138,7 +139,7 @@ typedef enum {TEST_TRACKING = 0x0, TEST_STEPLOHI = 0x01, TEST_STEPHILO = 0x02,
 XIntc 	IntrptCtlrInst;								// Interrupt Controller instance
 XTmrCtr	PWMTimerInst;								// PWM timer instance
 XGpio	GPIOInst;									// GPIO instance
-XSpi	SPIInst;									// SPI controller (master) instance
+//XSpi	SPIInst;									// SPI controller (master) instance
 
 // The following variables are shared between non-interrupt processing and
 // interrupt processing such that they must be global(and declared volatile)
@@ -157,6 +158,9 @@ int						pwm_duty;					// PWM duty cycle
 
 // Light Sensor Peripheral parameters
 // Add whatever global variables you need to use your Light Sensor peripheral driver
+double 	slope;
+Xuint32 offset;
+bool	is_scaled;
 
 				
 /*---------------------------------------------------------------------------*/					
@@ -190,6 +194,7 @@ int main()
 	u32			btnsw = 0x00000000, old_btnsw = 0x000000FF;
 	int			rotcnt, old_rotcnt = 0x1000;
 	Test_t		test, next_test;
+	is_scaled = false;
 	
 	// initialize devices and set up interrupts, etc.
  	Status = do_init();
@@ -354,7 +359,7 @@ int main()
 					
 					//ECE544 Students:
                     //Convert from count to 'volts'
-                    //v = YOUR_FUNCTION(count);
+					v = LIGHTSENSOR_Count2Volts(count);
 					
 					voltstostrng(v, s);
 					xil_printf("%d\t%d\t%s\n\r", smpl_idx, count, s);
@@ -437,7 +442,7 @@ int main()
 					
 					//ECE544 Students:
                     //Convert from count to 'volts'
-                    //v = YOUR_FUNCTION(count);
+					v = LIGHTSENSOR_Count2Volts((Xuint32)count);
 					
 					voltstostrng(v, s);
 					xil_printf("%d\t%d\t%s\n\r", smpl_idx, count, s);
@@ -512,7 +517,7 @@ XStatus DoTest_Track(void)
 		
 		//ECE544 Students:
         //make the light sensor measurement
-		//frq_cnt = YOUR FUNCTION HERE;
+		frq_cnt = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
 		
 		delay_msecs(1);
 		frq_smple_interval = timestamp - tss;
@@ -583,7 +588,7 @@ XStatus DoTest_Step(int dc_start)
 	
 		//ECE544 Students:
         //make the light sensor measurement
-		//sample[smpl_idx++] = YOUR FUNCTION HERE;
+		sample[smpl_idx++] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
 		
 	}		
 	frq_smple_interval = (timestamp - tss) / NUM_FRQ_SAMPLES;
@@ -610,11 +615,14 @@ XStatus DoTest_Characterize(void)
 	u16			frq_cnt;				// counts to display
 	int			n;						// number of samples
 	Xuint32		freq, dutyfactor;		// current frequency and duty factor
+    Xuint32         freq_max_cnt = 0;
+    Xuint32         freq_min_cnt = 4095;
+    int i;
 
 
 	// stabilize the PWM output (and thus the lamp intensity) at the
 	// minimum before starting the test
-	pwm_duty = PWM_STEPDC_MIN;
+	pwm_duty = STEPDC_MIN;
 	Status = PWM_SetParams(&PWMTimerInst, pwm_freq, pwm_duty);
 	if (Status == XST_SUCCESS)
 	{							
@@ -628,10 +636,10 @@ XStatus DoTest_Characterize(void)
     delay_msecs(1500);
 		
 	// sweep the duty cycle from STEPDC_MIN to STEPDC_MAX
-	smpl_idx = PWM_STEPDC_MIN;
+	smpl_idx = STEPDC_MIN;
 	n = 0;
 	tss = timestamp;
-	while (smpl_idx <= PWM_STEPDC_MAX)
+	while (smpl_idx <= STEPDC_MAX)
 	{
 		Status = PWM_SetParams(&PWMTimerInst, pwm_freq, smpl_idx);
 		if (Status == XST_SUCCESS)
@@ -645,7 +653,7 @@ XStatus DoTest_Characterize(void)
 		
         //ECE544 Students:
         // make the light sensor measurement
-		//sample[smpl_idx++] = YOUR FUNCTION HERE;
+		sample[smpl_idx++] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
 		
 		n++;
 		delay_msecs(50);
@@ -655,10 +663,21 @@ XStatus DoTest_Characterize(void)
     //ECE544 Students:
     //Find the min and max values and set the scaling/offset factors to use for your convert to 'voltage' function.
     //NOTE: It may also be useful to scale the actual 'count' values to a range of 0 - 4095 for the SerialCharter application to work correctly 
-    // FRQ_max_cnt = ?
-    // FRQ_min_cnt = ?
+	for (i = 0; i < STEPDC_MAX ; i++)
+	    {
+	        if (sample[i] < freq_min_cnt)
+	        {
+	            freq_min_cnt = sample[i];
+	        }
+	        if (sample[i] > freq_max_cnt)
+	        {
+	            freq_max_cnt = sample[i];
+	        }
+	    }
 	// YOUR_FUNCTION(FRQ_min_cnt,FRQ_max_cnt);
+	LIGHTSENSOR_SetScaling(freq_min_cnt, freq_max_cnt, &slope, &offset);
 	
+	is_scaled = true;
     return n;
 }
 
@@ -707,6 +726,12 @@ XStatus do_init(void)
 	
     //ECE544 Students:
     //Initialize your peripheral here
+	 Status = LIGHTSENSOR_Init(LIGHTSENSOR_BASEADDR);
+	    if (Status != XST_SUCCESS)
+	    {
+	        return XST_FAILURE;
+	    }
+
 			
 	// initialize the interrupt controller
 	Status = XIntc_Initialize(&IntrptCtlrInst,INTC_DEVICE_ID);
@@ -732,6 +757,14 @@ XStatus do_init(void)
     {
         return XST_FAILURE;
     } 
+
+    // start the lightsensor
+
+        Status = LIGHTSENSOR_Start(LIGHTSENSOR_BASEADDR);
+        if (Status != XST_SUCCESS)
+        {
+            return XST_FAILURE;
+        }
       
  	// enable the FIT interrupt
     XIntc_Enable(&IntrptCtlrInst, FIT_INTERRUPT_ID);	
@@ -823,7 +856,7 @@ void delay_msecs(u32 msecs)
 
  	// update the data
     // ECE544 Students: Convert frequency count to 'volts'
-    // v = YOUR_FUNCTION(frqcnt);
+     v = LIGHTSENSOR_Count2Volts((Xuint32)frqcnt);
  	voltstostrng(v, s);
  	LCD_setcursor(2, 3);
  	LCD_wrstring("     ");
