@@ -65,8 +65,8 @@ XStatus LIGHTSENSOR_Start(u32 BaseAddress)
 		LIGHTSENSOR_mWriteCONTROL(BaseAddress, 0x00000001);
 
 		// Read the status register to make sure it has been enabled
-		if ( LIGHTSENSOR_mReadSTATUS(BaseAddress) != (Xuint32) 0x00000001)
-				return XST_FAILURE;
+		//if ( LIGHTSENSOR_mReadSTATUS(BaseAddress) != (Xuint32) 0x00000001)
+		//		return XST_FAILURE;
 
 		return XST_SUCCESS;
 }
@@ -88,8 +88,8 @@ XStatus LIGHTSENSOR_Stop(u32 BaseAddress)
 		LIGHTSENSOR_mWriteCONTROL(BaseAddress, 0x00000000);
 
 		// Read the status register to make sure it has been enabled
-		if ( LIGHTSENSOR_mReadSTATUS(BaseAddress) != (Xuint32) 0x00000000)
-				return XST_FAILURE;
+		//if ( LIGHTSENSOR_mReadSTATUS(BaseAddress) != (Xuint32) 0x00000000)
+		//		return XST_FAILURE;
 
 		return XST_SUCCESS;
 }

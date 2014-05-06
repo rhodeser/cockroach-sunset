@@ -111,7 +111,7 @@
 
 // Light Sensor Peripheral parameters
 // Add whatever constants you need to use your Light Sensor peripheral driver
-
+#define LIGHTSENSOR_BASEADDR	XPAR_LIGHTSENSOR_0_BASEADDR
 
 // Settings for PID calculations
 #define NUM_FRQ_SAMPLES			250	
@@ -153,7 +153,7 @@ typedef enum {PROPORTIONAL = 0x0, INTEGRAL = 0x01, DERIVATIVE = 0x02, OFFSET = 0
 XIntc 	IntrptCtlrInst;								// Interrupt Controller instance
 XTmrCtr	PWMTimerInst;								// PWM timer instance
 XGpio	GPIOInst;									// GPIO instance
-XSpi	SPIInst;									// SPI controller (master) instance
+//XSpi	SPIInst;									// SPI controller (master) instance
 
 // The following variables are shared between non-interrupt processing and
 // interrupt processing such that they must be global(and declared volatile)
@@ -174,8 +174,10 @@ int						pwm_duty;					// PWM duty cycle
 // Add whatever global variables you need to use your Light Sensor peripheral driver
 double  setpoint;
 double  prop_gain, integral_gain, deriv_gain;
-double  scale;
+double 	slope;
 Xuint32 offset;
+bool	is_scaled;
+
 //enum for control selection
 Control_t PID_current_sel;
 // Array that keeps track of the PID parameter values
@@ -223,6 +225,7 @@ int main()
     u32			btnsw = 0x00000000, old_btnsw = 0x000000FF;
     int			rotcnt, old_rotcnt = 0x1000;
     Test_t		test, next_test;
+    is_scaled = false;
 
 
     // initialize devices and set up interrupts, etc.
@@ -544,9 +547,9 @@ int main()
  * WEST buttons
  */
 
-void param_select();
+void param_select()
 {
-
+;
 }
 
 
@@ -600,12 +603,15 @@ void set_PID_vals()
 {
     u16 row = 1;
     u16 col = 1;
+    u32 btnsw;
+
+    NX3_readBtnSw(&btnsw);
     // Set which control measurement we're using
     if (btnsw & msk_BTN_NORTH)
     {
         // increment to the next selection.  If we're at the last enum, set it to the 1st (proportional)
         if (PID_current_sel == OFFSET) PID_current_sel = PROPORTIONAL; 
-        else PID_current_sel = Control_t((int)(PID_current_sel+1));  //casting to allow increment
+        else PID_current_sel = (Control_t)((int)(PID_current_sel+1));  //casting to allow increment
 
         // cursor control logic
         if (PID_current_sel == PROPORTIONAL)                                    row  = col = 1;
@@ -655,6 +661,7 @@ void calc_bang()
 {
     double volt_out;
     u16 i=0;
+    XStatus		Status;					// Xilinx return status
 
     for (i = 0; i < NUM_FRQ_SAMPLES; i++)
     {
@@ -662,7 +669,7 @@ void calc_bang()
 
         // get count from light sensor and convert to voltage 
         // NOTES: conversion from u16 to Xuint32 in return value
-        sample[smpl_idx] = LIGHTSENSOR_Capture(BaseAddress, slope, offset, 1);
+        sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
         volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
         //convert to voltage before incrementing
         smpl_idx++;
@@ -698,12 +705,14 @@ void calc_prop()
 {
     u16 duty_out;
     double volt_out;
+    XStatus		Status;					// Xilinx return status
+    u16 i=0;
 
     for (i = 0; i < NUM_FRQ_SAMPLES; i++)
     {
         delay_msecs(1);
         // get count from light sensor and convert to voltage 
-        sample[smpl_idx] = LIGHTSENSOR_Capture(BaseAddress, slope, offset, 1);
+        sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
         volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
         //convert to voltage before incrementing
         smpl_idx++;
@@ -739,16 +748,18 @@ void calc_prop()
 
 void calc_PID()
 {
-    double deriv, integral, error, prev_error;
+    double deriv, integral, error, prev_error = 0;
     double volt_out;    
     u16 duty_out;
+    XStatus		Status;					// Xilinx return status
+    u16 i=0;
 
     for (i = 0; i < NUM_FRQ_SAMPLES; i++)
     {
         delay_msecs(1);
 
         // get count from light sensor and convert to voltage 
-        sample[smpl_idx] = LIGHTSENSOR_Capture(BaseAddress, slope, offset, 1);
+        sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
         volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
 
         //convert to voltage before incrementing
@@ -815,7 +826,7 @@ XStatus DoTest_Track(void)
 
         //make the light sensor measurement
         //NOTES: BaseAddress yet to be defined from embsys 
-        frq_cnt = LIGHTSENSOR_Capture(BaseAddress, slope, offset, is_scaled);
+        frq_cnt = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
 
         delay_msecs(1);
         frq_smple_interval = timestamp - tss;
@@ -844,7 +855,7 @@ XStatus DoTest_Step(int dc_start)
 {	
     XStatus		Status;					// Xilinx return status
     unsigned	tss;					// starting timestamp
-    u16			frq_cnt;				// measured counts to display
+    //u16			frq_cnt;				// measured counts to display
 
     // stabilize the PWM output (and thus the lamp intensity) before
     // starting the test
@@ -886,7 +897,7 @@ XStatus DoTest_Step(int dc_start)
 
         //QUESTION: Why is this still here if we don't step?
         //make the light sensor measurement
-        sample[smpl_idx++] = LIGHTSENSOR_Capture(BaseAddress, slope, offset, is_scaled);
+        sample[smpl_idx++] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
 
     }		
     frq_smple_interval = (timestamp - tss) / NUM_FRQ_SAMPLES;
@@ -910,9 +921,9 @@ XStatus DoTest_Characterize(void)
 {
     XStatus		Status;					// Xilinx return status
     unsigned	tss;					// starting timestamp
-    u16		frq_cnt;				// counts to display
+    //u16		frq_cnt;				// counts to display
     int		n;					// number of samples
-    Xuint32		freq, dutyfactor;		// current frequency and duty factor
+    //Xuint32		freq, dutyfactor;		// current frequency and duty factor
     Xuint32         freq_max_cnt = 0;
     Xuint32         freq_min_cnt = 4095;
     int             i = 0;
@@ -952,7 +963,7 @@ XStatus DoTest_Characterize(void)
 
         //ECE544 Students:
         // make the light sensor measurement
-        sample[smpl_idx++] = LIGHTSENSOR_Capture(BaseAddress, slope, offset, 0);
+        sample[smpl_idx++] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
 
         n++;
         delay_msecs(50);
@@ -963,7 +974,7 @@ XStatus DoTest_Characterize(void)
     //Find the min and max values and set the scaling/offset factors to use for your convert to 'voltage' function.
     //NOTE: It may also be useful to scale the actual 'count' values to a range of 0 - 4095 for the SerialCharter application to work correctly 
 
-    for (i = 0; i < STEPDC_MAX; ; i++) 
+    for (i = 0; i < STEPDC_MAX ; i++)
     {
         if (sample[i] < freq_min_cnt)
         {
@@ -976,7 +987,8 @@ XStatus DoTest_Characterize(void)
     }
 
     // Send min and max to set scaling and calculate slope and offset
-    LIGHTSENSOR_SetScaling(freq_min_cnt, freq_max_cnt, &slope, &offset)
+    LIGHTSENSOR_SetScaling(freq_min_cnt, freq_max_cnt, &slope, &offset);
+    is_scaled = true;
         return n;
 }
 
@@ -1024,9 +1036,12 @@ XStatus do_init(void)
     }
 
     //ECE544 Students:
-    //Initialize LIGHTSABER peripheral 
-    //TODO: Get macro for BaseAddress
-    LIGHTSENSOR_Init(BaseAddress);
+    //Initialize LIGHTSENSOR peripheral
+    Status = LIGHTSENSOR_Init(LIGHTSENSOR_BASEADDR);
+    if (Status != XST_SUCCESS)
+    {
+        return XST_FAILURE;
+    }
 
     // initialize the interrupt controller
     Status = XIntc_Initialize(&IntrptCtlrInst,INTC_DEVICE_ID);
@@ -1052,6 +1067,14 @@ XStatus do_init(void)
     {
         return XST_FAILURE;
     } 
+
+    // start the lightsensor
+
+    Status = LIGHTSENSOR_Start(LIGHTSENSOR_BASEADDR);
+    if (Status != XST_SUCCESS)
+    {
+        return XST_FAILURE;
+    }
 
     // enable the FIT interrupt
     XIntc_Enable(&IntrptCtlrInst, FIT_INTERRUPT_ID);	
