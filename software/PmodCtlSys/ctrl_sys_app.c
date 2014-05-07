@@ -213,6 +213,7 @@ void calc_PID();
 void no_test_LCD();
 double duty_to_volts();
 void param_select();
+bool lcd_initial = true;
 
 /*****************************************************************************/
 
@@ -299,8 +300,11 @@ int main()
         else                     pwm_duty = MIN_DUTY;	
 
         // Write values to display when in "idle" state
-        no_test_LCD();
-        set_PID_vals();
+        if (lcd_initial)        no_test_LCD();
+        else                    set_PID_vals();                   
+        
+        
+        
         // read sw[1:0] to get the test to perform.
         NX3_readBtnSw(&btnsw);
         test = btnsw & (msk_SWITCH1 | msk_SWITCH0);
@@ -586,6 +590,8 @@ void no_test_LCD()
     LCD_wrstring("   ");
     LCD_setcursor(2, 13);
     LCD_putnum(offset, 10);
+
+    lcd_initial = false;
 }
 
 
