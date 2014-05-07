@@ -125,7 +125,8 @@
 #define INT_INIT_GAIN                   10 
 #define DERIV_INIT_GAIN                 10 
 #define OFFSET_INIT                     0
-
+#define LCD_CMD_DISPLAY                 0x09
+#define LCD_CURSOR_ON                   0x0E
 #define	VOLT_MAX                        3.3	
 #define	VOLT_MIN                        0.1	
 #define SETPOINT_SCALE                  40.96

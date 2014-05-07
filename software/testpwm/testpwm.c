@@ -48,6 +48,13 @@
 
 
 /************************** Macros and Constants ******************************/
+
+// Toggles proj1 code on and off
+#define PROJ1                           1       
+
+// Debug mode
+#define DEBUG                           1
+
 // PWM and pulse detect timer parameters
 #define PWM_TIMER_DEVICE_ID		XPAR_TMRCTR_0_DEVICE_ID
 
@@ -77,6 +84,11 @@
 #define PWM_FREQ_100HZ			100
 #define PWM_FREQ_1KHZ			1000
 #define PWM_FREQ_10KHZ			10000
+#define PWM_FREQ_50KHZ			50000
+#define PWM_FREQ_100KHZ			100000
+#define PWM_FREQ_150KHZ			150000
+#define PWM_FREQ_200KHZ			200000
+
 
 #define INITIAL_FREQUENCY		PWM_FREQ_1KHZ
 #define INITIAL_DUTY_CYCLE		50
@@ -203,6 +215,10 @@ int main()
 					case 0x01:	pwm_freq = PWM_FREQ_100HZ;	break;
 					case 0x02:	pwm_freq = PWM_FREQ_1KHZ;	break;
 					case 0x03:	pwm_freq = PWM_FREQ_10KHZ;	break;
+                                        case 0x04: 	pwm_freq = PWM_FREQ_50KHZ;	break;
+                                        case 0x05: 	pwm_freq = PWM_FREQ_100KHZ;	break;
+                                        case 0x06: 	pwm_freq = PWM_FREQ_150KHZ;	break;
+                                        case 0x07: 	pwm_freq = PWM_FREQ_200KHZ;	break;
 				}
 				old_btnsw = btnsw;
 				new_perduty = true;
@@ -455,5 +471,40 @@ void FIT_Handler(void)
 	{
 		timestamp++;
 		ts_interval = 1;
-	}
+	
+        
+        }
+        if (PROJ1)
+        {
+        // check inputs
+        // See which switch is enabled
+            // if !(switch3 & MSK_SW3) 
+            // sw_pwdet();
+            // if (switch3 & MSK_SW3)
+            // hw_pwdet();
+        // 
+        // how to acquire freq?
+        // get wheel value
+        //
+        // Since fixed interval, period * num of up counts = high
+        // 
+        // 
+        }
 }	
+
+// 
+//TODO not in interrupt:
+//design hw verilog to do same stuff
+//create inputs/outputs with peripheral wheel (done?)
+//
+//Generate PWM
+    // Get input from wheel, use table to output duty cycle %. 
+// Drivers - clear load timer to complete operation
+//
+// LCD display
+    // done - TOp line shows PWM duty cycle and frequency selected
+    // Bottom line shows detected but with PWDET logic
+    //
+    // counter inside newer 
+    // 
+    //
