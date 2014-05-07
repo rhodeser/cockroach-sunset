@@ -332,27 +332,6 @@ int main()
             Xfloat32	v;
             char		s[20];	
 
-            // write the static info to the display if necessary
-            /*Running Test (rotary pushbutton pushed): Show which control algorithm is running and 
-              display instructions for running test and uploading data.*/ 
-            if (test != next_test)
-            {
-                if (test == TEST_BANG)
-                {
-                    strcpy(s, "|BANG|Press RBtn");
-                }
-                else
-                {
-                    strcpy(s, "|PID|Press RBtn");
-                }
-
-                LCD_clrd();
-                LCD_setcursor(1,0);
-                LCD_wrstring(s);
-                LCD_setcursor(2,0);
-                LCD_wrstring("LED OFF-Release ");
-            }
-
             // start the test on the rising edge of the Rotary Encoder button press
             // the test will write the light detector samples into the global "sample[]"
             // the samples will be sent to stdout when the Rotary Encoder button
@@ -370,6 +349,28 @@ int main()
                 // and do the test.  The test will return when the measured samples array
                 // has been filled.  Turn off the rightmost LED after the data has been 
                 // captured to let the user know he/she can release the button
+                // write the static info to the display if necessary
+                //
+            /*Running Test (rotary pushbutton pushed): Show which control algorithm is running and 
+              display instructions for running test and uploading data.*/ 
+                if (test != next_test)
+                {
+                    if (test == TEST_BANG)
+                    {
+                        strcpy(s, "|BANG|Press RBtn");
+                    }
+                    else
+                    {
+                        strcpy(s, "|PID|Press RBtn");
+                    }
+
+                    LCD_clrd();
+                    LCD_setcursor(1,0);
+                    LCD_wrstring(s);
+                    LCD_setcursor(2,0);
+                    LCD_wrstring("LED OFF-Release ");
+                }
+
                 NX3_writeleds(0x01);
                 if (test == TEST_BANG)  // perform bang bang calculations 
                 {				
@@ -449,14 +450,7 @@ int main()
         }
         else if (test == TEST_CHARACTERIZE)  // Test 3 - Characterize Response
         {
-            if (test != next_test)
-            {				
-                LCD_clrd();
-                LCD_setcursor(1,0);
-                LCD_wrstring("|CHAR|Press RBtn");
-                LCD_setcursor(2,0);
-                LCD_wrstring("LED OFF-Release ");
-            }
+
             // start the test on the rising edge of the Rotary Encoder button press
             // the test will write the samples into the global "sample[]"
             // the samples will be sent to stdout when the Rotary Encoder button
@@ -466,7 +460,16 @@ int main()
                 // light "Run" (rightmost) LED to show the test has begun
                 // and do the test.  The test will return when the measured samples array
                 // has been filled.  Turn off the rightmost LED after the data has been
+                if (test != next_test)
+                {				
+                    LCD_clrd();
+                    LCD_setcursor(1,0);
+                    LCD_wrstring("|CHAR|Press RBtn");
+                    LCD_setcursor(2,0);
+                    LCD_wrstring("LED OFF-Release ");
+                }
                 // captured to let the user know he/she can release the button
+
                 NX3_writeleds(0x01);			
                 DoTest_Characterize();
                 NX3_writeleds(0x00);
