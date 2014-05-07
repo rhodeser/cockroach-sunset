@@ -214,7 +214,8 @@ void no_test_LCD();
 double duty_to_volts();
 void param_select();
 bool lcd_initial = true;
-
+u16 row = 1;
+u16 col = 1;
 /*****************************************************************************/
 
 
@@ -288,9 +289,9 @@ int main()
     //set initial screen
     LCD_clrd();
     LCD_setcursor(1,0);
-    LCD_wrstring("P___  I___  D___");
+    LCD_wrstring("P:xxx I:xxx D:xxx");
     LCD_setcursor(2,0);
-    LCD_wrstring("SP:_.__  OFF:___");   
+    LCD_wrstring("SP:x.xx  OFF:xxx");
     //LCD_shiftl();
     // main loop - there is no exit except by hardware reset
     while (1)
@@ -300,11 +301,34 @@ int main()
         else                     pwm_duty = MIN_DUTY;	
 
         // Write values to display when in "idle" state
-        if (lcd_initial)        no_test_LCD();
-        else                    set_PID_vals();                   
-        
-        
-        
+        //if (lcd_initial)
+        //else
+        no_test_LCD();
+        set_PID_vals();
+
+        // FEATURE: test array, correct increments
+        // if (btnsw & msk_BTN_WEST)   ++PID_gain[PID_current_sel];
+        // if (btnsw & msk_BTN_EAST)   --PID_gain[PID_current_sel];
+
+        // if incrementing more than 1:
+        // if (btnsw & msk_BTN_WEST)   ++PID_gain[PID_current_sel] += GAIN_INCREMENT ;
+        // if (btnsw & msk_BTN_EAST)   --PID_gain[PID_current_sel] -= GAIN_INCREMENT ;
+        // special case for offset?
+
+        if (btnsw & msk_BTN_WEST)
+        {
+            if (PID_current_sel == PROPORTIONAL)     prop_gain     += GAIN_INCREMENT;
+            else if (PID_current_sel == INTEGRAL)    integral_gain += GAIN_INCREMENT;
+            else if (PID_current_sel == DERIVATIVE)  deriv_gain    += GAIN_INCREMENT;
+            else                                     offset        += GAIN_INCREMENT;
+        }
+        if (btnsw & msk_BTN_EAST)
+        {
+            if (PID_current_sel == PROPORTIONAL)     prop_gain     -= GAIN_INCREMENT;
+            else if (PID_current_sel == INTEGRAL)    integral_gain -= GAIN_INCREMENT;
+            else if (PID_current_sel == DERIVATIVE)  deriv_gain    -= GAIN_INCREMENT;
+            else                                     offset        -= GAIN_INCREMENT;
+        }
         // read sw[1:0] to get the test to perform.
         NX3_readBtnSw(&btnsw);
         test = btnsw & (msk_SWITCH1 | msk_SWITCH0);
@@ -351,8 +375,8 @@ int main()
                 // captured to let the user know he/she can release the button
                 // write the static info to the display if necessary
                 //
-            /*Running Test (rotary pushbutton pushed): Show which control algorithm is running and 
-              display instructions for running test and uploading data.*/ 
+            /*Running Test (rotary pushbutton pushed): Show which control algorithm is running and
+              display instructions for running test and uploading data.*/
                 if (test != next_test)
                 {
                     if (test == TEST_BANG)
@@ -461,7 +485,7 @@ int main()
                 // and do the test.  The test will return when the measured samples array
                 // has been filled.  Turn off the rightmost LED after the data has been
                 if (test != next_test)
-                {				
+                {
                     LCD_clrd();
                     LCD_setcursor(1,0);
                     LCD_wrstring("|CHAR|Press RBtn");
@@ -563,38 +587,43 @@ void param_select()
 
 void no_test_LCD()
 {
-    // Write Proportional gain
-    LCD_setcursor(1, 1);
-    LCD_wrstring("   ");
-    LCD_setcursor(1, 1);
-    LCD_putnum(prop_gain, 10);
+	u32 btnsw;
+	NX3_readBtnSw(&btnsw);
+	    // Set which control measurement we're using
+	if (btnsw & msk_BTN_NORTH)
+	{
+		// Write Proportional gain
+		LCD_setcursor(1, 2);
+		LCD_wrstring("   ");
+		LCD_setcursor(1, 2);
+		LCD_putnum(prop_gain, 10);
 
-    // Write Integral gain
-    LCD_setcursor(1, 7);
-    LCD_wrstring("   ");
-    LCD_setcursor(1, 7);
-    LCD_putnum(integral_gain, 10);
+		// Write Integral gain
+		LCD_setcursor(1, 8);
+		LCD_wrstring("   ");
+		LCD_setcursor(1, 8);
+		LCD_putnum(integral_gain, 10);
 
-    // Write Derivative gain
-    LCD_setcursor(1, 13);
-    LCD_wrstring("   ");
-    LCD_setcursor(1, 13);
-    LCD_putnum(deriv_gain, 10);
+		// Write Derivative gain
+		LCD_setcursor(1, 14);
+		LCD_wrstring("   ");
+		LCD_setcursor(1, 14);
+		LCD_putnum(deriv_gain, 10);
 
-    // Write Setpoint
-    LCD_setcursor(2, 4);
-    LCD_wrstring(" ");
-    LCD_setcursor(2, 6);
-    LCD_wrstring("  ");
-    LCD_putnum(setpoint, 10);
+		// Write Setpoint
+		LCD_setcursor(2, 3);
+		LCD_wrstring("    ");
+		LCD_setcursor(2, 3);
+		LCD_putnum(setpoint, 10);
 
-    // Write Offset
-    LCD_setcursor(2, 13);
-    LCD_wrstring("   ");
-    LCD_setcursor(2, 13);
-    LCD_putnum(offset, 10);
+		// Write Offset
+		LCD_setcursor(2, 13);
+		LCD_wrstring("   ");
+		LCD_setcursor(2, 13);
+		LCD_putnum(offset, 10);
 
-    lcd_initial = false;
+		lcd_initial = false;
+	}
 }
 
 
@@ -611,8 +640,7 @@ void no_test_LCD()
 
 void set_PID_vals()
 {
-    u16 row = 1;
-    u16 col = 1;
+
     u32 btnsw;
 
     NX3_readBtnSw(&btnsw);
@@ -624,9 +652,17 @@ void set_PID_vals()
         else PID_current_sel = (Control_t)((int)(PID_current_sel+1));  //casting to allow increment
 
         // cursor control logic
-        if (PID_current_sel == PROPORTIONAL)                                    row  = col = 1;
+        if (PID_current_sel == PROPORTIONAL)
+        {
+        	row = 1;
+        	col = 2;
+        }
         else if (PID_current_sel == INTEGRAL || PID_current_sel == DERIVATIVE)  col += 6; 
-        else if (PID_current_sel == OFFSET)                                     row  = 2; 
+        else if (PID_current_sel == OFFSET)
+        {
+        	row  = 2;
+        	col --  ;
+        }
     }
 
     //set cursor location and turn on cursor 
@@ -634,29 +670,7 @@ void set_PID_vals()
     LCD_docmd(LCD_CMD_DISPLAY, LCD_CURSOR_ON);
     //LCD_docmd(LCD_CMD_DISPLAY, LCD_CURSOR_OFF);
 
-    // FEATURE: test array, correct increments 
-    // if (btnsw & msk_BTN_WEST)   ++PID_gain[PID_current_sel];
-    // if (btnsw & msk_BTN_EAST)   --PID_gain[PID_current_sel];  
-   
-    // if incrementing more than 1:
-    // if (btnsw & msk_BTN_WEST)   ++PID_gain[PID_current_sel] += GAIN_INCREMENT ;
-    // if (btnsw & msk_BTN_EAST)   --PID_gain[PID_current_sel] -= GAIN_INCREMENT ; 
-    // special case for offset?
 
-    if (btnsw & msk_BTN_WEST)
-    {
-        if (PID_current_sel == PROPORTIONAL)     prop_gain     += GAIN_INCREMENT;
-        else if (PID_current_sel == INTEGRAL)    integral_gain += GAIN_INCREMENT;
-        else if (PID_current_sel == DERIVATIVE)  deriv_gain    += GAIN_INCREMENT;
-        else                                     offset        += GAIN_INCREMENT; 
-    }
-    if (btnsw & msk_BTN_EAST)
-    {
-        if (PID_current_sel == PROPORTIONAL)     prop_gain     -= GAIN_INCREMENT;
-        else if (PID_current_sel == INTEGRAL)    integral_gain -= GAIN_INCREMENT;
-        else if (PID_current_sel == DERIVATIVE)  deriv_gain    -= GAIN_INCREMENT;
-        else                                     offset        -= GAIN_INCREMENT; 
-    }
 }
 
 /*************************************************************************************
@@ -1212,3 +1226,4 @@ void FIT_Handler(void)
         ts_interval = 1;
     }
 }	
+
