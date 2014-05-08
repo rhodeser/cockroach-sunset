@@ -518,7 +518,6 @@ XStatus DoTest_Track(void)
 		//ECE544 Students:
         //make the light sensor measurement
 		frq_cnt = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
-		
 
 		delay_msecs(1);
 		frq_smple_interval = timestamp - tss;
@@ -655,9 +654,11 @@ XStatus DoTest_Characterize(void)
 		
         //ECE544 Students:
         // make the light sensor measurement
-		frq_cnt = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
+		frq_cnt = LIGHTSENSOR_mReadPERIOD(LIGHTSENSOR_BASEADDR);
+		//frq_cnt = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
 		sample[smpl_idx++] = frq_cnt;
 		
+
 		n++;
 		delay_msecs(50);
 	}		
@@ -683,6 +684,7 @@ XStatus DoTest_Characterize(void)
 	slope = diff / 4095.0;
 	offset = freq_min_cnt;
 	
+
 	is_scaled = true;
     return n;
 }

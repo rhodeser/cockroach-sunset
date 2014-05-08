@@ -112,8 +112,8 @@ parameter C_NUM_REG                      = 6;
 
 // -- ADD USER PORTS BELOW THIS LINE -----------------
 input 									freq_out;		// the generated frequency signal
-output 	  [31:0]						high_time;		// detected high time
-output	  [31:0]						period;			// detected period
+output 	  								high_time;		// detected high time
+output	  								period;			// detected period
 // -- ADD USER PORTS ABOVE THIS LINE -----------------
 
 // -- DO NOT EDIT BELOW THIS LINE --------------------
@@ -168,19 +168,19 @@ output                                    IP2Bus_Error;
   );
   
   // assign outputs
-  assign high_time = high_time_int;
-  assign period = period_int;
+  assign high_time = high_time_int[0];
+  assign period = period_int[0];
 
   // slv_reg0 is the Control register (from microblaze to periferal)
-  assign en_int = slv_reg0[0];
+  assign en_int = 1'b1;//slv_reg0[0];
 
   // microblaze input registers (from periferal to microblaze)
   // slv_reg1 is the Status register
   // slv_reg2 and slv_reg3 are the detected counts
-  always @* begin
-		  slv_reg1 = {31'd0,en_int};
-		  slv_reg2 = high_time_int;
-		  slv_reg3 = period_int;
+  always @( posedge Bus2IP_Clk ) //@* begin
+		  slv_reg1 <= {31'd0,en_int};
+		  slv_reg2 <= high_time_int;
+		  slv_reg3 <= period_int;
   end
 
   // ------------------------------------------------------

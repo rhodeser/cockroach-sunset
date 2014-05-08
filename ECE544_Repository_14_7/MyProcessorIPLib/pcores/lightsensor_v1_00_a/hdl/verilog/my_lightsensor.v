@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////////
-// Create Date:    04/30/2014  by Caren Zgheib
+// Create Date:    04/30/2014  by Caren Zgheib using Erik Rohdes' code
 // Module Name:    my_lightsensor.v 
 // Project Name:   ECE544: project 2
 // Target Devices: Nexys 3
@@ -32,111 +32,43 @@ module my_lightsensor(
 		input reset,				// system reset
 		input freq_out,				// the generated frequency signal
 		input enable,				// enable periferal
-		output [31:0] high_time,	// detected high time
-		output [31:0] period		// detected period
+		output reg [31:0] high_time,// detected high time
+		output reg [31:0] period	// detected period
 );
 
+reg [31:0] high = 32'd0;
+reg [31:0] low = 32'd0;
+reg prev_level, curr_level;
 
-// Define States
-parameter	RESET 		= 0;
-parameter	IDLE		= 1;
-parameter	COUNT_HIGH	= 2;
-parameter	COUNT_LOW	= 3;
-parameter	UPDATE		= 4;
+always @(posedge clk)
+begin
+    prev_level <= curr_level;
+    curr_level <= freq_out;
+end
 
-// Define Internal Registers
-reg [2:0]	state, next_state;
-reg [31:0]	high_time_int, period_int, high_time_final, period_final;
+// use rising edge detection for output enable
+wire rising_edge = ~prev_level & curr_level;
 
-
-always @(posedge clk) begin
-	if (reset)
-		state <= RESET;
-	else if (~enable)
-		state <= IDLE;
-	else
-		state <= next_state;
-end	
-
-
-always @(posedge clk) begin
-	case (state)
-		RESET: begin
-			high_time_final	<= 32'd0;
-			period_final	<= 32'd0;
-			next_state <= reset ? RESET : IDLE;
-			end
-		
-		IDLE: begin
-			high_time_int	<= 32'd0;
-			period_int		<= 32'd0;
-			high_time_final <= high_time_final;
-			period_final	<= period_final;
-
-			if (~enable) 					next_state <= IDLE;
-			
-			else if (enable && freq_out) begin
-					high_time_int	<= high_time_int + 1;
-					period_int		<= period_int + 1;
-					next_state <= COUNT_HIGH;
-			end
-			
-			else							next_state <= IDLE;
-			end
-
-			COUNT_HIGH: begin
-					if (freq_out) begin
-							high_time_int	<= high_time_int + 1;
-							period_int		<= period_int + 1;
-							high_time_final <= high_time_final;
-							period_final	<= period_final;
-
-							next_state <= COUNT_HIGH;
-					end
-					else begin
-							high_time_int	<= high_time_int;
-							period_int		<= period_int + 1;
-							high_time_final <= high_time_final;
-							period_final	<= period_final;
-
-							next_state <= COUNT_LOW;
-					end
-			end
-
-			COUNT_LOW: begin
-					if (!freq_out) begin
-							high_time_int	<= high_time_int;
-							period_int		<= period_int + 1;
-							high_time_final <= high_time_final;
-							period_final	<= period_final;
-
-							next_state <= COUNT_LOW;
-					end
-					else
-							next_state <= UPDATE;
-			end
-
-			UPDATE: begin
-					high_time_final	<= high_time_int;
-					period_final	<= period_int;
-					
-					next_state <= IDLE;
-			end
-
-			default: begin
-					high_time_int	<= 32'd0;
-					period_int		<= 32'd0;
-					high_time_final <= high_time_final;
-					period_final	<= period_final;
-
-					next_state <= IDLE;
-			end
-
-		endcase
-end 
-
-assign high_time	= high_time_final;
-assign period		= period_final;
-
+always @(posedge clk)
+begin
+    if (rising_edge)
+    begin
+        // send local count to output registers for software access on GPIOs
+        high_time   <= high;
+        period    <=  low + high; 
+        // clear local counters (start high at 1 since it's on the rising edge
+        high <= 32'd1;
+        low  <= 32'd0;
+    end
+	 
+    else
+	 begin
+            // increment appropriate counter depending on PWM level
+        if (curr_level)
+            high <= high + 1'b1;
+        else
+            low  <= low  + 1'b1;
+    end
+end
 endmodule //my_lightsensor
 
