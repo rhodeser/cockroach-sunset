@@ -108,7 +108,7 @@ XStatus LIGHTSENSOR_Stop(u32 BaseAddress)
  * 		- period count
  *
  */
-Xuint32 LIGHTSENSOR_Capture(u32 BaseAddress, double slope, Xuint32 offset, bool is_scaled, Xuint32 min)
+Xuint16 LIGHTSENSOR_Capture(u32 BaseAddress, double slope, Xuint32 offset, bool is_scaled, Xuint32 min)
 {
 		Xuint32 count;
 		volatile Xuint32 period;

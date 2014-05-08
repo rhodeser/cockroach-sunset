@@ -165,7 +165,7 @@ volatile u32			gpio_port = 0;				// GPIO port register - maintained in program
 
 // The following variables are shared between the functions in the program
 // such that they must be global
-u16						sample[NUM_FRQ_SAMPLES];	// sample array 	
+u16						sample[NUM_FRQ_SAMPLES];	// sample array
 int						smpl_idx;					// index into sample array
 int						frq_smple_interval;			// approximate sample interval			
 
@@ -897,7 +897,7 @@ void calc_prop()
 void calc_PID()
 {
     double deriv, integral, error, prev_error = 0;
-    double volt_out;    
+    double volt_out;
     u16 duty_out;
     XStatus		Status;					// Xilinx return status
     u16 i=1;
