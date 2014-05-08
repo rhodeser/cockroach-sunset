@@ -217,7 +217,7 @@ Xuint32 LIGHTSENSOR_Capture(u32 BaseAddress, double slope, Xuint32 offset, bool 
  *    - XST_FAILURE   if failed
  *
  */
-XStatus LIGHTSENSOR_SetScaling(Xuint32 minCount, Xuint32 maxCount, double *slope, Xuint32 *offset);
+XStatus LIGHTSENSOR_SetScaling(Xuint32 maxCount, Xuint32 minCount, double *slope, Xuint32 *offset);
 
 /**
  * LIGHTSENSOR_Count2Volts() - Converts the actual 'count' measurements to a scaled

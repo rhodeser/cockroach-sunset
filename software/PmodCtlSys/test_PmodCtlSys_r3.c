@@ -149,7 +149,7 @@ volatile u32			gpio_port = 0;				// GPIO port register - maintained in program
 
 // The following variables are shared between the functions in the program
 // such that they must be global
-u16						sample[NUM_FRQ_SAMPLES];	// sample array 	
+u16						sample[NUM_FRQ_SAMPLES];	// sample array
 int						smpl_idx;					// index into sample array
 int						frq_smple_interval;			// approximate sample interval			
 
@@ -500,7 +500,7 @@ XStatus DoTest_Track(void)
 {
 	static int		old_pwm_freq = 0;			// old pwm_frequency and duty cycle
 	static int		old_pwm_duty = 200;			// these values will force the initial display	
-	u16				frq_cnt;					// light detector counts to display
+	volatile u16	frq_cnt;					// light detector counts to display
 	XStatus			Status;						// Xilinx return status
 	unsigned		tss;						// starting timestamp			
 
@@ -519,6 +519,7 @@ XStatus DoTest_Track(void)
         //make the light sensor measurement
 		frq_cnt = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
 		
+
 		delay_msecs(1);
 		frq_smple_interval = timestamp - tss;
 				
@@ -612,12 +613,13 @@ XStatus DoTest_Characterize(void)
 {
 	XStatus		Status;					// Xilinx return status
 	unsigned	tss;					// starting timestamp
-	u16			frq_cnt;				// counts to display
+	volatile u16	frq_cnt;				// counts to display
 	int			n;						// number of samples
 	Xuint32		freq, dutyfactor;		// current frequency and duty factor
     Xuint32         freq_max_cnt = 0;
     Xuint32         freq_min_cnt = 4095;
     int i;
+    double diff = 0;
 
 
 	// stabilize the PWM output (and thus the lamp intensity) at the
@@ -653,7 +655,8 @@ XStatus DoTest_Characterize(void)
 		
         //ECE544 Students:
         // make the light sensor measurement
-		sample[smpl_idx++] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
+		frq_cnt = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
+		sample[smpl_idx++] = frq_cnt;
 		
 		n++;
 		delay_msecs(50);
@@ -675,7 +678,10 @@ XStatus DoTest_Characterize(void)
 	        }
 	    }
 	// YOUR_FUNCTION(FRQ_min_cnt,FRQ_max_cnt);
-	LIGHTSENSOR_SetScaling(freq_min_cnt, freq_max_cnt, &slope, &offset);
+	//LIGHTSENSOR_SetScaling(freq_max_cnt, freq_min_cnt, &slope, &offset);
+	diff = freq_max_cnt - freq_min_cnt;
+	slope = diff / 4095.0;
+	offset = freq_min_cnt;
 	
 	is_scaled = true;
     return n;
