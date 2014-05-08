@@ -615,8 +615,8 @@ XStatus DoTest_Characterize(void)
 	volatile u16	frq_cnt;				// counts to display
 	int			n;						// number of samples
 	Xuint32		freq, dutyfactor;		// current frequency and duty factor
-    Xuint32         freq_max_cnt = 0;
-    Xuint32         freq_min_cnt = 4095;
+    Xuint32         freq_max_cnt = 3000;
+    Xuint32         freq_min_cnt = 3000;
     int i;
     double diff = 0;
 
@@ -654,8 +654,8 @@ XStatus DoTest_Characterize(void)
 		
         //ECE544 Students:
         // make the light sensor measurement
-		frq_cnt = LIGHTSENSOR_mReadPERIOD(LIGHTSENSOR_BASEADDR);
-		//frq_cnt = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
+		//frq_cnt = LIGHTSENSOR_mReadPERIOD(LIGHTSENSOR_BASEADDR);
+		frq_cnt = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
 		sample[smpl_idx++] = frq_cnt;
 		
 
@@ -681,7 +681,7 @@ XStatus DoTest_Characterize(void)
 	// YOUR_FUNCTION(FRQ_min_cnt,FRQ_max_cnt);
 	//LIGHTSENSOR_SetScaling(freq_max_cnt, freq_min_cnt, &slope, &offset);
 	diff = freq_max_cnt - freq_min_cnt;
-	slope = diff / 4095.0;
+	slope = 4095.0 / diff;
 	offset = freq_min_cnt;
 	
 
