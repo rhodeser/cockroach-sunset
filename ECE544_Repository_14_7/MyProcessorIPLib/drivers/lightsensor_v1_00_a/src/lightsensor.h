@@ -202,7 +202,7 @@ XStatus LIGHTSENSOR_Stop(u32 BaseAddress);
  * 		- period count
  *
  */
-Xuint32 LIGHTSENSOR_Capture(u32 BaseAddress, double slope, Xuint32 offset, bool is_scaled);
+Xuint32 LIGHTSENSOR_Capture(u32 BaseAddress, double slope, Xuint32 offset, bool is_scaled, Xuint32 min);
 
 /**
  * LIGHTSENSOR_SetScaling() - Sets the slope and offset values for scaling.

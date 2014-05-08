@@ -114,7 +114,7 @@
 #define LIGHTSENSOR_BASEADDR	XPAR_LIGHTSENSOR_0_BASEADDR
 
 // Settings for PID calculations
-#define NUM_FRQ_SAMPLES			100
+#define NUM_FRQ_SAMPLES					250
 #define MIN_DUTY                        1
 #define MAX_DUTY                        99 
 #define USE_INTEGRAL                    1
@@ -179,6 +179,7 @@ double  prop_gain, integral_gain, deriv_gain;
 double 	slope;
 Xuint32 offset;
 bool	is_scaled;
+Xuint32  freq_min_cnt;
 
 //enum for control selection
 Control_t PID_current_sel;
@@ -234,6 +235,7 @@ int main()
     u16 row = 1;
     u16 col = 2;
     bool calc_done = false;
+    freq_min_cnt = 3000;
 
     // initialize devices and set up interrupts, etc.
     Status = do_init();
@@ -526,7 +528,8 @@ int main()
                         count = sample[smpl_idx];
 
                         //Convert from count to 'volts'
-                        v = LIGHTSENSOR_Count2Volts(count); 
+                        //v = LIGHTSENSOR_Count2Volts(count);
+                        v = (-3.3 / 4095) * (count) + 3.3;
 
                         voltstostrng(v, s);
                         xil_printf("%d\t%d\t%s\n\r", smpl_idx, count, s);
@@ -625,7 +628,8 @@ int main()
 
                         //Convert from count to 'volts'
                         //NOTES: different types (Xuint32)
-                        v = LIGHTSENSOR_Count2Volts((Xuint32) count);
+                        //v = LIGHTSENSOR_Count2Volts((Xuint32) count);
+                        v = (-3.3 / 4095) * (count) + 3.3;
 
                         voltstostrng(v, s);
                         xil_printf("%d\t%d\t%s\n\r", smpl_idx, count, s);
@@ -817,17 +821,19 @@ void set_PID_vals(row, col)
 void calc_bang()
 {
     double volt_out;
-    u16 i=0;
+    u16 i=1;
     XStatus		Status;					// Xilinx return status
 
-    for (i = 0; i < NUM_FRQ_SAMPLES; i++)
+    for (i = 1; i < NUM_FRQ_SAMPLES; i++)
     {
         delay_msecs(1);
 
         // get count from light sensor and convert to voltage 
         // NOTES: conversion from u16 to Xuint32 in return value
-        sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
-        volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
+        sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
+
+        //volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
+        volt_out = (-3.3 / 4095) * (sample[smpl_idx]) + 3.3;
         //convert to voltage before incrementing
         smpl_idx++;
 
@@ -863,14 +869,16 @@ void calc_prop()
     u16 duty_out;
     double volt_out;
     XStatus		Status;					// Xilinx return status
-    u16 i=0;
+    u16 i=1;
 
-    for (i = 0; i < NUM_FRQ_SAMPLES; i++)
+    for (i = 1; i < NUM_FRQ_SAMPLES; i++)
     {
         delay_msecs(1);
         // get count from light sensor and convert to voltage 
-        sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
-        volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
+        sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
+
+        //volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
+        volt_out = (-3.3 / 4095) * (sample[smpl_idx]) + 3.3;
         //convert to voltage before incrementing
         smpl_idx++;
 
@@ -909,15 +917,16 @@ void calc_PID()
     double volt_out;    
     u16 duty_out;
     XStatus		Status;					// Xilinx return status
-    u16 i=0;
+    u16 i=1;
 
-    for (i = 0; i < NUM_FRQ_SAMPLES; i++)
+    for (i = 1; i < NUM_FRQ_SAMPLES; i++)
     {
         delay_msecs(1);
 
         // get count from light sensor and convert to voltage 
-        sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
-        volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
+        sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
+        //volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
+        volt_out = (-3.3 / 4095) * (sample[smpl_idx]) + 3.3;
 
         //convert to voltage before incrementing
         smpl_idx++;
@@ -968,7 +977,7 @@ XStatus DoTest_Track(void)
     static int		old_pwm_duty = 200;			// these values will force the initial display	
     u16				frq_cnt;					// light detector counts to display
     XStatus			Status;						// Xilinx return status
-    unsigned		tss;						// starting timestamp			
+    unsigned		tss;						// starting timestamp
 
     if ((pwm_freq != old_pwm_freq) || (pwm_duty != old_pwm_duty))
     {	
@@ -983,7 +992,7 @@ XStatus DoTest_Track(void)
 
         //make the light sensor measurement
         //NOTES: BaseAddress yet to be defined from embsys 
-        frq_cnt = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
+        frq_cnt = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
 
         delay_msecs(1);
         frq_smple_interval = timestamp - tss;
@@ -1054,7 +1063,7 @@ XStatus DoTest_Step(int dc_start)
 
         //QUESTION: Why is this still here if we don't step?
         //make the light sensor measurement
-        sample[smpl_idx++] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
+        sample[smpl_idx++] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
 
     }		
     frq_smple_interval = (timestamp - tss) / NUM_FRQ_SAMPLES;
@@ -1082,7 +1091,7 @@ XStatus DoTest_Characterize(void)
     int		n;					// number of samples
     //Xuint32		freq, dutyfactor;		// current frequency and duty factor
     Xuint32         freq_max_cnt = 3000;
-    Xuint32         freq_min_cnt = 3000;
+
     int             i = 0;
     double diff = 0;
 
@@ -1121,7 +1130,7 @@ XStatus DoTest_Characterize(void)
 
         //ECE544 Students:
         // make the light sensor measurement
-        sample[smpl_idx++] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled);
+        sample[smpl_idx++] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
 
         n++;
         delay_msecs(50);
@@ -1132,7 +1141,7 @@ XStatus DoTest_Characterize(void)
     //Find the min and max values and set the scaling/offset factors to use for your convert to 'voltage' function.
     //NOTE: It may also be useful to scale the actual 'count' values to a range of 0 - 4095 for the SerialCharter application to work correctly 
 
-    for (i = 0; i < STEPDC_MAX ; i++)
+    for (i = 1; i < STEPDC_MAX ; i++)
     {
         if (sample[i] < freq_min_cnt)
         {
@@ -1148,7 +1157,7 @@ XStatus DoTest_Characterize(void)
     //LIGHTSENSOR_SetScaling(freq_min_cnt, freq_max_cnt, &slope, &offset);
     diff = freq_max_cnt - freq_min_cnt;
     slope = 4095.0 / diff;
-    offset = freq_min_cnt;
+    offset = 0;
 
     is_scaled = true;
         return n;
@@ -1328,7 +1337,8 @@ void update_lcd(int vin_dccnt, short frqcnt)
 
     // update the data
     // ECE544 Students: Convert frequency count to 'volts'
-    v = LIGHTSENSOR_Count2Volts(frqcnt); 
+    //v = LIGHTSENSOR_Count2Volts(frqcnt);
+    v = (-3.3 / 4095) * (frqcnt) + 3.3;
     voltstostrng(v, s);
     LCD_setcursor(2, 3);
     LCD_wrstring("     ");
