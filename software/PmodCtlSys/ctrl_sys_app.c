@@ -114,7 +114,7 @@
 #define LIGHTSENSOR_BASEADDR	XPAR_LIGHTSENSOR_0_BASEADDR
 
 // Settings for PID calculations
-#define NUM_FRQ_SAMPLES			250	
+#define NUM_FRQ_SAMPLES			100
 #define MIN_DUTY                        1
 #define MAX_DUTY                        99 
 #define USE_INTEGRAL                    1
@@ -125,7 +125,9 @@
 #define INT_INIT_GAIN                   10 
 #define DERIV_INIT_GAIN                 10 
 #define OFFSET_INIT                     0
-
+#define LCD_DISPLAYONOFF 				0x09
+#define LCD_CURSOR_ON 					0x0E
+#define LCD_CURSOR_OFF 					0x0C
 #define	VOLT_MAX                        3.3	
 #define	VOLT_MIN                        0.1	
 #define SETPOINT_SCALE                  40.96
@@ -212,6 +214,8 @@ void calc_PID();
 void no_test_LCD();
 double duty_to_volts();
 void param_select();
+u16 row = 1;
+u16 col = 2;
 
 /*****************************************************************************/
 
@@ -226,7 +230,8 @@ int main()
     int			rotcnt, old_rotcnt = 0x1000;
     Test_t		test, next_test;
     is_scaled = false;
-
+    bool lcd_initial = true;
+    char 		sp[20];
 
     // initialize devices and set up interrupts, etc.
     Status = do_init();
@@ -265,17 +270,17 @@ int main()
 
     // display the greeting   
     LCD_setcursor(1,0);
-    LCD_wrstring("PWM Control system ");
+    LCD_wrstring("PWM Ctrl sys");
     LCD_setcursor(2,0);
     LCD_wrstring("Erik R, Caren Z");
     NX3_writeleds(0xFF);
-    delay_msecs(2500);
+    //delay_msecs(2500);
 
     LCD_clrd();
     LCD_setcursor(1,0);
     LCD_wrstring("Characterizing..");
     //Run the LED characterization routine to establish sensor min's and max's
-    DoTest_Characterize();
+    //DoTest_Characterize();
     LCD_setcursor(2,0);
     LCD_wrstring("Done.");
 
@@ -284,11 +289,7 @@ int main()
 
     delay_msecs(500);
     //set initial screen
-    LCD_clrd();
-    LCD_setcursor(1,0);
-    LCD_wrstring("P___  I___  D___");
-    LCD_setcursor(2,0);
-    LCD_wrstring("SP:_.__  OFF:___");   
+
     //LCD_shiftl();
     // main loop - there is no exit except by hardware reset
     while (1)
@@ -298,12 +299,40 @@ int main()
         else                     pwm_duty = MIN_DUTY;	
 
         // Write values to display when in "idle" state
+        if (lcd_initial)
+        {
+    		LCD_clrd();
+    		LCD_setcursor(1,0);
+    		LCD_wrstring("P:    I:    D:   ");
+    		LCD_setcursor(2,0);
+    		LCD_wrstring("SP:+     OFF:   ");
+    		lcd_initial = 0;
+    		LCD_setcursor(1,2);
+        }
         no_test_LCD();
-        // TODO Allow users to move cursor and change values
+        //else
+
         set_PID_vals();
+
+
         // read sw[1:0] to get the test to perform.
         NX3_readBtnSw(&btnsw);
         test = btnsw & (msk_SWITCH1 | msk_SWITCH0);
+
+        ROT_readRotcnt(&rotcnt);
+        if (rotcnt != old_rotcnt)
+        {
+            //scale rotary count to setpoint values
+        	LCD_docmd(LCD_DISPLAYONOFF, LCD_CURSOR_OFF);
+            setpoint = MAX(VOLT_MIN, MIN((rotcnt/SETPOINT_SCALE), VOLT_MAX));
+            voltstostrng(setpoint, sp);
+        	old_rotcnt = rotcnt;
+            LCD_setcursor(2, 3);
+            //LCD_wrstring("    ");
+            LCD_wrstring(sp);
+            LCD_setcursor(2, 3);
+            //LCD_putnum(setpoint, 10);
+        }
 
         if (test == TEST_T_CALLS)  // Reserved for something special.  Prepare to be awesome. 
         {
@@ -311,15 +340,16 @@ int main()
             // read rotary count and handle duty cycle changes
             // limit duty cycle to between STEPDC_MIN and STEPDC_MAX
             // PWM frequency does not change in this test
-            ROT_readRotcnt(&rotcnt);
+            /*ROT_readRotcnt(&rotcnt);
             if (rotcnt != old_rotcnt)
             {
                 //scale rotary count to setpoint values
                 setpoint = MAX(VOLT_MIN, MIN(rotcnt/SETPOINT_SCALE, VOLT_MAX));
                 old_rotcnt = rotcnt;
             }
-            DoTest_Track();
-            next_test = TEST_BANG;
+            DoTest_Track();*/
+            next_test = TEST_INVALID;
+        	;
         } 
 
 
@@ -327,27 +357,6 @@ int main()
         {
             Xfloat32	v;
             char		s[20];	
-
-            // write the static info to the display if necessary
-            /*Running Test (rotary pushbutton pushed): Show which control algorithm is running and 
-              display instructions for running test and uploading data.*/ 
-            if (test != next_test)
-            {
-                if (test == TEST_BANG)
-                {
-                    strcpy(s, "|BANG|Press RBtn");
-                }
-                else
-                {
-                    strcpy(s, "|PID|Press RBtn");
-                }
-
-                LCD_clrd();
-                LCD_setcursor(1,0);
-                LCD_wrstring(s);
-                LCD_setcursor(2,0);
-                LCD_wrstring("LED OFF-Release ");
-            }
 
             // start the test on the rising edge of the Rotary Encoder button press
             // the test will write the light detector samples into the global "sample[]"
@@ -366,6 +375,30 @@ int main()
                 // and do the test.  The test will return when the measured samples array
                 // has been filled.  Turn off the rightmost LED after the data has been 
                 // captured to let the user know he/she can release the button
+                // write the static info to the display if necessary
+                //
+            /*Running Test (rotary pushbutton pushed): Show which control algorithm is running and
+              display instructions for running test and uploading data.*/
+
+            	if (test != next_test)
+                {
+                    if (test == TEST_BANG)
+                    {
+                        strcpy(s, "|BANG|Long Press");
+                    }
+                    else
+                    {
+                        strcpy(s, "|PID|Long Press");
+                    }
+
+                    LCD_clrd();
+                    LCD_setcursor(1,0);
+                    LCD_wrstring(s);
+                    LCD_setcursor(2,0);
+                    LCD_wrstring("Rot Btn to send");
+                    //LCD_wrstring("LED OFF-Release ");
+                }
+
                 NX3_writeleds(0x01);
                 if (test == TEST_BANG)  // perform bang bang calculations 
                 {				
@@ -377,12 +410,13 @@ int main()
                 }
                 NX3_writeleds(0x00);
 
-                delay_msecs(10);
-                LCD_setcursor(2,0);
-                LCD_wrstring("Hit RBtn to send");
-
+                //delay_msecs(10);
+                //LCD_setcursor(2,0);
+                //LCD_wrstring("Hit RBtn to send");
+                //delay_msecs(500);
                 //FEATURE: wait for user input to send data over
-                if (msk_BTN_ROT & btnsw)
+                NX3_readBtnSw(&btnsw);
+                if ((btnsw ^ old_btnsw) && (msk_BTN_ROT & btnsw))
                 {
                     // light "Transfer" LED to indicate that data is being transmitted
                     // Show the traffic on the LCD
@@ -438,31 +472,34 @@ int main()
                     next_test = TEST_INVALID;			
                 }
             }  // do the step test and dump data
-            else
+           /* else
             {
                 next_test = test;
-            }
+            }*/
         }
         else if (test == TEST_CHARACTERIZE)  // Test 3 - Characterize Response
         {
-            if (test != next_test)
-            {				
-                LCD_clrd();
-                LCD_setcursor(1,0);
-                LCD_wrstring("|CHAR|Press RBtn");
-                LCD_setcursor(2,0);
-                LCD_wrstring("LED OFF-Release ");
-            }
+
             // start the test on the rising edge of the Rotary Encoder button press
             // the test will write the samples into the global "sample[]"
             // the samples will be sent to stdout when the Rotary Encoder button
             // is released
-            if ((btnsw ^ old_btnsw) && (msk_BTN_ROT & btnsw))  // do the step test and dump data  
+            NX3_readBtnSw(&btnsw);
+            if ((btnsw ^ old_btnsw) && (msk_BTN_ROT & btnsw))
             {
                 // light "Run" (rightmost) LED to show the test has begun
                 // and do the test.  The test will return when the measured samples array
                 // has been filled.  Turn off the rightmost LED after the data has been
+                if (test != next_test)
+                {
+                    LCD_clrd();
+                    LCD_setcursor(1,0);
+                    LCD_wrstring("|CHAR|Press RBtn");
+                    LCD_setcursor(2,0);
+                    LCD_wrstring("LED OFF-Release ");
+                }
                 // captured to let the user know he/she can release the button
+
                 NX3_writeleds(0x01);			
                 DoTest_Characterize();
                 NX3_writeleds(0x00);
@@ -521,10 +558,7 @@ int main()
                 old_btnsw = btnsw;								
                 next_test = TEST_INVALID;
             }  // do the step test and dump data
-            else
-            {
-                next_test = test;
-            }
+
         } // Test 3 - Characterize Response
         else  // outside the current test range - blink LED's and hang
         {
@@ -556,36 +590,42 @@ void param_select()
 
 void no_test_LCD()
 {
-    // Write Proportional gain
-    LCD_setcursor(1, 1);
-    LCD_wrstring("   ");
-    LCD_setcursor(1, 1);
-    LCD_putnum(prop_gain, 10);
+	u32 btnsw;
+	NX3_readBtnSw(&btnsw);
+	    // Set which control measurement we're using
+	if (btnsw & msk_BTN_EAST || btnsw & msk_BTN_WEST)
+	{
+		// Write Proportional gain
+		LCD_setcursor(1, 2);
+		LCD_wrstring("   ");
+		LCD_setcursor(1, 2);
+		LCD_putnum(prop_gain, 10);
 
-    // Write Integral gain
-    LCD_setcursor(1, 7);
-    LCD_wrstring("   ");
-    LCD_setcursor(1, 7);
-    LCD_putnum(integral_gain, 10);
+		// Write Integral gain
+		LCD_setcursor(1, 8);
+		LCD_wrstring("   ");
+		LCD_setcursor(1, 8);
+		LCD_putnum(integral_gain, 10);
 
-    // Write Derivative gain
-    LCD_setcursor(1, 13);
-    LCD_wrstring("   ");
-    LCD_setcursor(1, 13);
-    LCD_putnum(deriv_gain, 10);
+		// Write Derivative gain
+		LCD_setcursor(1, 14);
+		LCD_wrstring("   ");
+		LCD_setcursor(1, 14);
+		LCD_putnum(deriv_gain, 10);
 
-    // Write Setpoint
-    LCD_setcursor(2, 4);
-    LCD_wrstring(" ");
-    LCD_setcursor(2, 6);
-    LCD_wrstring("  ");
-    LCD_putnum(setpoint, 10);
+		// Write Setpoint
+		//LCD_setcursor(2, 3);
+		//LCD_wrstring("    ");
+		//LCD_setcursor(2, 3);
+		//LCD_putnum(setpoint, 10);
 
-    // Write Offset
-    LCD_setcursor(2, 13);
-    LCD_wrstring("   ");
-    LCD_setcursor(2, 13);
-    LCD_putnum(offset, 10);
+		// Write Offset
+		LCD_setcursor(2, 13);
+		LCD_wrstring("   ");
+		LCD_setcursor(2, 13);
+		LCD_putnum(offset, 10);
+
+	}
 }
 
 
@@ -602,8 +642,7 @@ void no_test_LCD()
 
 void set_PID_vals()
 {
-    u16 row = 1;
-    u16 col = 1;
+
     u32 btnsw;
 
     NX3_readBtnSw(&btnsw);
@@ -615,37 +654,60 @@ void set_PID_vals()
         else PID_current_sel = (Control_t)((int)(PID_current_sel+1));  //casting to allow increment
 
         // cursor control logic
-        if (PID_current_sel == PROPORTIONAL)                                    row  = col = 1;
-        else if (PID_current_sel == INTEGRAL || PID_current_sel == DERIVATIVE)  col += 6; 
-        else if (PID_current_sel == OFFSET)                                     row  = 2; 
+        if (PID_current_sel == PROPORTIONAL)
+        {
+        	row = 1;
+        	col = 2;
+        }
+        else if (PID_current_sel == INTEGRAL)
+        {
+        	row = 1;
+        	col = 8;
+        }
+        else if (PID_current_sel == DERIVATIVE)
+        {
+        	row = 1;
+        	col = 14;
+        }
+        else if (PID_current_sel == OFFSET)
+        {
+        	row  = 2;
+        	col  = 13;
+        }
     }
 
-    //TODO LCD_docmd(...);
+    //
+
+
+    delay_msecs(20);
+    //set cursor location and turn on cursor 
     LCD_setcursor(row,col);
-    //LCD_docmd(...);
+    LCD_docmd(LCD_DISPLAYONOFF, LCD_CURSOR_ON);
+    //LCD_docmd(LCD_CMD_DISPLAY, LCD_CURSOR_OFF);
 
-    // FEATURE: test array, correct increments 
+    // FEATURE: test array, correct increments
     // if (btnsw & msk_BTN_WEST)   ++PID_gain[PID_current_sel];
-    // if (btnsw & msk_BTN_EAST)   --PID_gain[PID_current_sel];  
-    // special case for offset
+    // if (btnsw & msk_BTN_EAST)   --PID_gain[PID_current_sel];
 
-    if (btnsw & msk_BTN_WEST)
+    // if incrementing more than 1:
+    // if (btnsw & msk_BTN_WEST)   ++PID_gain[PID_current_sel] += GAIN_INCREMENT ;
+    // if (btnsw & msk_BTN_EAST)   --PID_gain[PID_current_sel] -= GAIN_INCREMENT ;
+    // special case for offset?
+
+    if (btnsw & msk_BTN_EAST)
     {
         if (PID_current_sel == PROPORTIONAL)     prop_gain     += GAIN_INCREMENT;
         else if (PID_current_sel == INTEGRAL)    integral_gain += GAIN_INCREMENT;
         else if (PID_current_sel == DERIVATIVE)  deriv_gain    += GAIN_INCREMENT;
-        else                                     offset        += GAIN_INCREMENT; 
+        else                                     offset        += GAIN_INCREMENT;
     }
-    if (btnsw & msk_BTN_EAST)
+    if (btnsw & msk_BTN_WEST)
     {
         if (PID_current_sel == PROPORTIONAL)     prop_gain     -= GAIN_INCREMENT;
         else if (PID_current_sel == INTEGRAL)    integral_gain -= GAIN_INCREMENT;
         else if (PID_current_sel == DERIVATIVE)  deriv_gain    -= GAIN_INCREMENT;
-        else                                     offset        -= GAIN_INCREMENT; 
+        else                                     offset        -= GAIN_INCREMENT;
     }
-
-
-    // TODO: ALL LCD display stuff 
 }
 
 /*************************************************************************************
@@ -1201,3 +1263,4 @@ void FIT_Handler(void)
         ts_interval = 1;
     }
 }	
+
