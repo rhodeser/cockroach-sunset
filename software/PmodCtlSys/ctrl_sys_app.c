@@ -282,7 +282,7 @@ int main()
     LCD_setcursor(1,0);
     LCD_wrstring("Characterizing..");
     //Run the LED characterization routine to establish sensor min's and max's
-    //DoTest_Characterize();
+    DoTest_Characterize();
     LCD_setcursor(2,0);
     LCD_wrstring("Done.");
 
@@ -309,7 +309,7 @@ int main()
     		LCD_wrstring("P:   I:   D:   ");
     		LCD_setcursor(2,0);
     		LCD_wrstring("SP:+     OFF:   ");
-    		lcd_initial = 0;
+    		lcd_initial = false;
     		LCD_setcursor(1,2);
         }
         no_test_LCD();
@@ -458,7 +458,7 @@ int main()
                     {
                         strcpy(s, "|PID|Long Press");
                     }
-
+                    delay_msecs(100);
                     LCD_clrd();
                     LCD_setcursor(1,0);
                     LCD_wrstring(s);
@@ -1064,9 +1064,10 @@ XStatus DoTest_Characterize(void)
     //u16		frq_cnt;				// counts to display
     int		n;					// number of samples
     //Xuint32		freq, dutyfactor;		// current frequency and duty factor
-    Xuint32         freq_max_cnt = 0;
-    Xuint32         freq_min_cnt = 4095;
+    Xuint32         freq_max_cnt = 3000;
+    Xuint32         freq_min_cnt = 3000;
     int             i = 0;
+    double diff = 0;
 
 
     // stabilize the PWM output (and thus the lamp intensity) at the
@@ -1127,7 +1128,11 @@ XStatus DoTest_Characterize(void)
     }
 
     // Send min and max to set scaling and calculate slope and offset
-    LIGHTSENSOR_SetScaling(freq_min_cnt, freq_max_cnt, &slope, &offset);
+    //LIGHTSENSOR_SetScaling(freq_min_cnt, freq_max_cnt, &slope, &offset);
+    diff = freq_max_cnt - freq_min_cnt;
+    slope = 4095.0 / diff;
+    offset = freq_min_cnt;
+
     is_scaled = true;
         return n;
 }

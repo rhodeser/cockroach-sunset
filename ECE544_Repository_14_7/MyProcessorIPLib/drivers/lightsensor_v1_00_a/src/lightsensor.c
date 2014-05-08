@@ -166,7 +166,7 @@ XStatus LIGHTSENSOR_SetScaling(Xuint32 maxCount, Xuint32 minCount, double *slope
 double LIGHTSENSOR_Count2Volts(Xuint32 scaledCount)
 {
 		double volts;
-		volts = (3.3 / 4095) * (scaledCount) + 3.3;
+		volts = (3.3 / 4095) * (scaledCount);
 
 		return volts;
 }
