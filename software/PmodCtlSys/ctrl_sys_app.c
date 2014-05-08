@@ -309,6 +309,13 @@ int main()
     		LCD_clrd();
     		LCD_setcursor(1,0);
     		LCD_wrstring("P:   I:   D:   ");
+    		LCD_setcursor(1,2);
+    		/*LCD_wrchar(LCDCC_WRCHAR, PROP_INIT_GAIN);
+    		LCD_setcursor(1,7);
+    		LCD_wrchar(LCDCC_WRCHAR, PROP_INIT_GAIN);
+    		LCD_setcursor(1,12);
+    		LCD_wrchar(LCDCC_WRCHAR, PROP_INIT_GAIN);
+    		*/
     		LCD_setcursor(2,0);
     		LCD_wrstring("SP:+     OFF:   ");
     		lcd_initial = false;
@@ -419,7 +426,9 @@ int main()
             }
             DoTest_Track();*/
             next_test = TEST_INVALID;
-        	;
+            lcd_initial = true;
+            delay_msecs(3000);
+
         } 
 
 
@@ -541,6 +550,8 @@ int main()
                     NX3_writeleds(0x00);
                     old_btnsw = btnsw;								
                     next_test = TEST_INVALID;			
+                    lcd_initial = true;
+                    delay_msecs(3000);
                 }
             }  // do the step test and dump data
            /* else
@@ -639,6 +650,11 @@ int main()
                     NX3_writeleds(0x00);
                     old_btnsw = btnsw;
                     next_test = TEST_INVALID;
+                    delay_msecs(1000);
+                    //LCD_clrd();
+                    //LCD_docmd(LCD_DISPLAYONOFF, LCD_CURSOR_OFF);
+                    lcd_initial = true;
+                    delay_msecs(3000);
                 }
             }  // do the step test and dump data
 
@@ -651,6 +667,7 @@ int main()
             NX3_writeleds(0x00);
         }
         // wait a bit and start again
+
         delay_msecs(100);			 								
     }  // while(1) loop
 }  // end main()
@@ -1357,5 +1374,6 @@ void FIT_Handler(void)
         ts_interval = 1;
     }
 }	
+
 
 
