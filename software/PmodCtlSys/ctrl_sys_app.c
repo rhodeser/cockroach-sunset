@@ -165,7 +165,7 @@ volatile u32			gpio_port = 0;				// GPIO port register - maintained in program
 
 // The following variables are shared between the functions in the program
 // such that they must be global
-u16						sample[NUM_FRQ_SAMPLES];	// sample array
+volatile u16			sample[NUM_FRQ_SAMPLES];	// sample array
 int						smpl_idx;					// index into sample array
 int						frq_smple_interval;			// approximate sample interval			
 
@@ -526,6 +526,8 @@ int main()
                         u16 count;
 
                         count = sample[smpl_idx];
+                        if (count > 4095)
+                        	count = 4095;
 
                         //Convert from count to 'volts'
                         //v = LIGHTSENSOR_Count2Volts(count);
@@ -625,6 +627,8 @@ int main()
                         char		s[10];
 
                         count = sample[smpl_idx];
+                        if (count > 4095)
+                        	count = 4095;
 
                         //Convert from count to 'volts'
                         //NOTES: different types (Xuint32)
@@ -820,7 +824,7 @@ void set_PID_vals(row, col)
 
 void calc_bang()
 {
-    double volt_out;
+    Xfloat32 volt_out;
     u16 i=1;
     XStatus		Status;					// Xilinx return status
 
@@ -866,7 +870,7 @@ void calc_bang()
 
 void calc_prop()
 {
-    u16 duty_out;
+    int duty_out;
     double volt_out;
     XStatus		Status;					// Xilinx return status
     u16 i=1;
@@ -915,7 +919,7 @@ void calc_PID()
 {
     double deriv, integral, error, prev_error = 0;
     double volt_out;
-    u16 duty_out;
+    int duty_out;
     XStatus		Status;					// Xilinx return status
     u16 i=1;
 
