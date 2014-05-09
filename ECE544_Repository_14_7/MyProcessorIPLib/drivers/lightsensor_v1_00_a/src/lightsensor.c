@@ -111,19 +111,20 @@ XStatus LIGHTSENSOR_Stop(u32 BaseAddress)
 Xuint32 LIGHTSENSOR_Capture(u32 BaseAddress, double slope, Xuint32 offset, bool is_scaled, Xuint32 min)
 {
 		Xuint32 count;
-		volatile Xuint32 period;
+		volatile Xuint32 period, freq;
 
 		period = LIGHTSENSOR_mReadPERIOD(BaseAddress);
+        freq = 66666666 / period;
 
 		if (is_scaled)	// already characterized
 		{
-				count = (slope * (period - min)) + offset;
-				if (count > 4095)
-					count = 4095;
+				count = (Xuint32)((slope * (freq - min)) + offset);
+				//if (count > 4095)
+			    //		count = 4095;
 		}
 		else			// in characterize function
 		{
-				count = period;
+				count = (Xuint32)freq;
 		}
 
 		return count;
@@ -148,7 +149,7 @@ XStatus LIGHTSENSOR_SetScaling(Xuint32 maxCount, Xuint32 minCount, double *slope
 		double diff;
 		diff = maxCount - minCount;
 
-		*slope = diff / 4095.0;
+		*slope = 4095.0/diff;
 		*offset = minCount;
 
 		return XST_SUCCESS;
@@ -168,7 +169,7 @@ XStatus LIGHTSENSOR_SetScaling(Xuint32 maxCount, Xuint32 minCount, double *slope
 double LIGHTSENSOR_Count2Volts(Xuint32 scaledCount)
 {
 		double volts;
-		volts = (-3.3 / 4095) * (scaledCount) + 3.3;
+		volts = (3.3 / 4095.0) * (scaledCount);
 
 		return volts;
 }

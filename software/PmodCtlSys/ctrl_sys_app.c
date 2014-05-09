@@ -531,7 +531,7 @@ int main()
 
                         //Convert from count to 'volts'
                         //v = LIGHTSENSOR_Count2Volts(count);
-                        v = (-3.3 / 4095) * (count) + 3.3;
+                        v = (3.3 / 4095.0) * (count);
 
                         voltstostrng(v, s);
                         xil_printf("%d\t%d\t%s\n\r", smpl_idx, count, s);
@@ -633,7 +633,7 @@ int main()
                         //Convert from count to 'volts'
                         //NOTES: different types (Xuint32)
                         //v = LIGHTSENSOR_Count2Volts((Xuint32) count);
-                        v = (-3.3 / 4095) * (count) + 3.3;
+                        v = (3.3 / 4095.0) * (count); 
 
                         voltstostrng(v, s);
                         xil_printf("%d\t%d\t%s\n\r", smpl_idx, count, s);
@@ -837,7 +837,7 @@ void calc_bang()
         sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
 
         //volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
-        volt_out = (-3.3 / 4095) * (sample[smpl_idx]) + 3.3;
+        volt_out = (3.3 / 4095.0) * (sample[smpl_idx]); 
         //convert to voltage before incrementing
         smpl_idx++;
 
@@ -882,7 +882,7 @@ void calc_prop()
         sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
 
         //volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
-        volt_out = (-3.3 / 4095) * (sample[smpl_idx]) + 3.3;
+        volt_out = (3.3 / 4095.0) * (sample[smpl_idx]);
         //convert to voltage before incrementing
         smpl_idx++;
 
@@ -930,7 +930,7 @@ void calc_PID()
         // get count from light sensor and convert to voltage 
         sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
         //volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
-        volt_out = (-3.3 / 4095) * (sample[smpl_idx]) + 3.3;
+        volt_out = (3.3 / 4095) * (sample[smpl_idx]);
 
         //convert to voltage before incrementing
         smpl_idx++;
@@ -1161,7 +1161,7 @@ XStatus DoTest_Characterize(void)
     //LIGHTSENSOR_SetScaling(freq_min_cnt, freq_max_cnt, &slope, &offset);
     diff = freq_max_cnt - freq_min_cnt;
     slope = 4095.0 / diff;
-    offset = 0;
+    //offset = 0;
 
     is_scaled = true;
         return n;
@@ -1342,7 +1342,7 @@ void update_lcd(int vin_dccnt, short frqcnt)
     // update the data
     // ECE544 Students: Convert frequency count to 'volts'
     //v = LIGHTSENSOR_Count2Volts(frqcnt);
-    v = (-3.3 / 4095) * (frqcnt) + 3.3;
+    v = (3.3 / 4095.0) * (frqcnt); 
     voltstostrng(v, s);
     LCD_setcursor(2, 3);
     LCD_wrstring("     ");
