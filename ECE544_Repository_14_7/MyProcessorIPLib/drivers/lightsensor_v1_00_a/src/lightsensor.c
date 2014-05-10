@@ -114,17 +114,18 @@ Xuint32 LIGHTSENSOR_Capture(u32 BaseAddress, double slope, Xuint32 offset, bool 
 		volatile Xuint32 period, freq;
 
 		period = LIGHTSENSOR_mReadPERIOD(BaseAddress);
-        freq = 66666666 / period;
+        //freq = 66666666 / period;
 
 		if (is_scaled)	// already characterized
 		{
-				count = (Xuint32)((slope * (freq - min)) + offset);
+				count = (Xuint32)(slope * (freq - min)+ 1);
 				//if (count > 4095)
 			    //		count = 4095;
 		}
 		else			// in characterize function
 		{
-				count = (Xuint32)freq;
+				//count = (Xuint32)freq;
+				count = period;
 		}
 
 		return count;

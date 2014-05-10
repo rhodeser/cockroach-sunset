@@ -171,7 +171,7 @@ int						frq_smple_interval;			// approximate sample interval
 
 int						pwm_freq;					// PWM frequency 
 int						pwm_duty;					// PWM duty cycle
-
+int 					dc_start;					// Starting PWM duty cycle
 // Light Sensor Peripheral parameters
 // Add whatever global variables you need to use your Light Sensor peripheral driver
 double  setpoint;
@@ -210,8 +210,8 @@ void			FIT_Handler(void);											// fixed interval timer interrupt handler
 double count_to_volts(u16 count);
 
 void set_PID_vals();
-void calc_bang();
-void calc_PID();
+XStatus calc_bang();
+XStatus calc_PID();
 void no_test_LCD();
 double duty_to_volts();
 void param_select();
@@ -236,6 +236,7 @@ int main()
     u16 col = 2;
     bool calc_done = false;
     freq_min_cnt = 3000;
+
 
     // initialize devices and set up interrupts, etc.
     Status = do_init();
@@ -300,8 +301,16 @@ int main()
     while (1)
     { 
         //set Vin to min or max depending on switch 3 value 
-        if (btnsw & msk_SWITCH3) pwm_duty = MAX_DUTY;  
-        else                     pwm_duty = MIN_DUTY;	
+        if (btnsw & msk_SWITCH3)
+        	{
+        		pwm_duty = MAX_DUTY;
+        		dc_start = MAX_DUTY;
+        	}
+        else
+        	{
+        		pwm_duty = MIN_DUTY;
+        		dc_start = MIN_DUTY;
+        	}
 
         // Write values to display when in "idle" state
         if (lcd_initial)
@@ -526,12 +535,13 @@ int main()
                         u16 count;
 
                         count = sample[smpl_idx];
-                        if (count > 4095)
+                        if (count > 4096)
                         	count = 4095;
 
                         //Convert from count to 'volts'
                         //v = LIGHTSENSOR_Count2Volts(count);
-                        v = (3.3 / 4095.0) * (count);
+                        //v = (3.3 / 4095.0) * (count);
+                        v = (-3.3 / 4095.0) * (count) + 3.3;
 
                         voltstostrng(v, s);
                         xil_printf("%d\t%d\t%s\n\r", smpl_idx, count, s);
@@ -627,13 +637,14 @@ int main()
                         char		s[10];
 
                         count = sample[smpl_idx];
-                        if (count > 4095)
+                        if (count > 4096)
                         	count = 4095;
 
                         //Convert from count to 'volts'
                         //NOTES: different types (Xuint32)
                         //v = LIGHTSENSOR_Count2Volts((Xuint32) count);
-                        v = (3.3 / 4095.0) * (count); 
+                        //v = (3.3 / 4095.0) * (count);
+                        v = (-3.3 / 4095.0) * (count) + 3.3;
 
                         voltstostrng(v, s);
                         xil_printf("%d\t%d\t%s\n\r", smpl_idx, count, s);
@@ -822,42 +833,60 @@ void set_PID_vals(row, col)
  * cycle.  IF it's above, it puts the PWM output to the minimum duty.
  *************************************************************************************/
 
-void calc_bang()
+XStatus calc_bang()
 {
     Xfloat32 volt_out;
-    u16 i=1;
     XStatus		Status;					// Xilinx return status
 
-    for (i = 1; i < NUM_FRQ_SAMPLES; i++)
+    // stabilize the PWM output (and thus the lamp intensity) at the
+    // minimum before starting the test
+    Status = PWM_SetParams(&PWMTimerInst, pwm_freq, dc_start);
+    if (Status == XST_SUCCESS)
     {
-        delay_msecs(1);
+    	PWM_Start(&PWMTimerInst);
+    }
+    else
+    {
+    	return -1;
+    }
+    //Wait for the LED output to settle before starting
+    delay_msecs(1500);
+
+    for (smpl_idx = 1; smpl_idx < NUM_FRQ_SAMPLES; smpl_idx++)
+    {
+
 
         // get count from light sensor and convert to voltage 
         // NOTES: conversion from u16 to Xuint32 in return value
         sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
 
-        //volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
-        volt_out = (3.3 / 4095.0) * (sample[smpl_idx]); 
-        //convert to voltage before incrementing
-        smpl_idx++;
 
-        if (volt_out < setpoint)
-        {
-            Status = PWM_SetParams(&PWMTimerInst, pwm_freq, MAX_DUTY);
-            if (Status == XST_SUCCESS)
-            {							
-                PWM_Start(&PWMTimerInst);
-            }
-        }
-        else
-        {
-            Status = PWM_SetParams(&PWMTimerInst, pwm_freq, MIN_DUTY);
-            if (Status == XST_SUCCESS)
-            {							
-                PWM_Start(&PWMTimerInst);
-            }
-        }
+    	//volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
+    	        //volt_out = (3.3 / 4095.0) * (sample[smpl_idx]);
+    			volt_out = (-3.3 / 4095.0) * (sample[smpl_idx]) + 3.3;
+    	        //convert to voltage before incrementing
+
+    	        if (volt_out < setpoint)
+    	        {
+    	            Status = PWM_SetParams(&PWMTimerInst, pwm_freq, MAX_DUTY);
+    	            delay_msecs(1);
+    	            if (Status == XST_SUCCESS)
+    	            {
+    	                PWM_Start(&PWMTimerInst);
+    	            }
+    	        }
+    	        else
+    	        {
+    	            Status = PWM_SetParams(&PWMTimerInst, pwm_freq, MIN_DUTY);
+    	            delay_msecs(1);
+    	            if (Status == XST_SUCCESS)
+    	            {
+    	                PWM_Start(&PWMTimerInst);
+    	            }
+    	        }
+    	        delay_msecs(100);
     }
+    return XST_SUCCESS;
 }
 
 
@@ -868,23 +897,28 @@ void calc_bang()
  * WARNING: Might be completely useless
  **************************************************************************************/
 
-void calc_prop()
+void calc_prop()		// NOT USED?
 {
     int duty_out;
     double volt_out;
     XStatus		Status;					// Xilinx return status
-    u16 i=1;
+    //u16 i=1;
 
-    for (i = 1; i < NUM_FRQ_SAMPLES; i++)
+
+
+    for (smpl_idx = 1; smpl_idx < NUM_FRQ_SAMPLES; smpl_idx++)
     {
-        delay_msecs(1);
+        delay_msecs(100);
         // get count from light sensor and convert to voltage 
         sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
 
         //volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
-        volt_out = (3.3 / 4095.0) * (sample[smpl_idx]);
+        //volt_out = (3.3 / 4095.0) * (sample[smpl_idx]);
+
+        volt_out = (-3.3 / 4095.0) * (sample[smpl_idx]) + 3.3;
+
         //convert to voltage before incrementing
-        smpl_idx++;
+        //smpl_idx++;
 
         // Control offset is gotten from characterization
         volt_out = offset + (setpoint - volt_out) * slope;
@@ -915,25 +949,40 @@ void calc_prop()
  * the P, I, and D values, and outputs the value to the PWM params.
  **************************************************************************************/
 
-void calc_PID()
+XStatus calc_PID()
 {
     double deriv, integral, error, prev_error = 0;
     double volt_out;
     int duty_out;
     XStatus		Status;					// Xilinx return status
-    u16 i=1;
+    //u16 i=1;
 
-    for (i = 1; i < NUM_FRQ_SAMPLES; i++)
+    	// stabilize the PWM output (and thus the lamp intensity) at the
+        // minimum before starting the test
+        Status = PWM_SetParams(&PWMTimerInst, pwm_freq, dc_start);
+        if (Status == XST_SUCCESS)
+        {
+            PWM_Start(&PWMTimerInst);
+        }
+        else
+        {
+            return -1;
+        }
+        //Wait for the LED output to settle before starting
+        delay_msecs(1500);
+
+    for (smpl_idx = 1; smpl_idx < NUM_FRQ_SAMPLES; smpl_idx++)
     {
-        delay_msecs(1);
+        delay_msecs(100);
 
         // get count from light sensor and convert to voltage 
         sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
         //volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
-        volt_out = (3.3 / 4095) * (sample[smpl_idx]);
+        //volt_out = (3.3 / 4095) * (sample[smpl_idx]);
+        volt_out = (-3.3 / 4095.0) * (sample[smpl_idx]) + 3.3;
 
         //convert to voltage before incrementing
-        smpl_idx++;
+        //smpl_idx++;
 
         // calculate derivative;
         error = setpoint - volt_out;
@@ -962,6 +1011,7 @@ void calc_PID()
             PWM_Start(&PWMTimerInst);
         }
     } 
+    return XST_SUCCESS;
 }
 
 
@@ -1094,7 +1144,7 @@ XStatus DoTest_Characterize(void)
     //u16		frq_cnt;				// counts to display
     int		n;					// number of samples
     //Xuint32		freq, dutyfactor;		// current frequency and duty factor
-    Xuint32         freq_max_cnt = 3000;
+    Xuint32         freq_max_cnt = 1000;
 
     int             i = 0;
     double diff = 0;
@@ -1342,7 +1392,8 @@ void update_lcd(int vin_dccnt, short frqcnt)
     // update the data
     // ECE544 Students: Convert frequency count to 'volts'
     //v = LIGHTSENSOR_Count2Volts(frqcnt);
-    v = (3.3 / 4095.0) * (frqcnt); 
+    //v = (3.3 / 4095.0) * (frqcnt);
+    v = (-3.3 / 4095.0) * (frqcnt) + 3.3;
     voltstostrng(v, s);
     LCD_setcursor(2, 3);
     LCD_wrstring("     ");
