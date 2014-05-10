@@ -119,11 +119,11 @@
 #define MAX_DUTY                        99 
 #define USE_INTEGRAL                    1
 #define USE_DERIV                       1
-#define GAIN_INCREMENT                  5
+#define GAIN_INCREMENT                  0.1
 //TODO Define parameters below correctly
-#define PROP_INIT_GAIN                  10
-#define INT_INIT_GAIN                   10 
-#define DERIV_INIT_GAIN                 10 
+#define PROP_INIT_GAIN                  0
+#define INT_INIT_GAIN                   0
+#define DERIV_INIT_GAIN                 0
 #define OFFSET_INIT                     0
 #define LCD_DISPLAYONOFF 				0x09
 #define LCD_CURSOR_ON 					0x0E
