@@ -117,8 +117,6 @@
 #define NUM_FRQ_SAMPLES					250
 #define MIN_DUTY                        1
 #define MAX_DUTY                        99 
-#define USE_INTEGRAL                    1
-#define USE_DERIV                       1
 #define GAIN_INCREMENT                  0.1
 //TODO Define parameters below correctly
 #define PROP_INIT_GAIN                  0
@@ -183,8 +181,6 @@ Xuint32  freq_min_cnt;
 
 //enum for control selection
 Control_t PID_current_sel;
-// Array that keeps track of the PID parameter values
-double PID_gain[4] = {PROP_INIT_GAIN, INT_INIT_GAIN, DERIV_INIT_GAIN, OFFSET_INIT};
 
 /*---------------------------------------------------------------------------*/					
 int						debugen = 0;				// debug level/flag
@@ -213,7 +209,6 @@ void set_PID_vals();
 XStatus calc_bang();
 XStatus calc_PID();
 void no_test_LCD();
-double duty_to_volts();
 void param_select();
 
 
@@ -295,8 +290,6 @@ int main()
 
     delay_msecs(500);
     //set initial screen
-
-    //LCD_shiftl();
     // main loop - there is no exit except by hardware reset
     while (1)
     { 
@@ -319,22 +312,12 @@ int main()
     		LCD_setcursor(1,0);
     		LCD_wrstring("P:   I:   D:   ");
     		LCD_setcursor(1,2);
-    		/*LCD_wrchar(LCDCC_WRCHAR, PROP_INIT_GAIN);
-    		LCD_setcursor(1,7);
-    		LCD_wrchar(LCDCC_WRCHAR, PROP_INIT_GAIN);
-    		LCD_setcursor(1,12);
-    		LCD_wrchar(LCDCC_WRCHAR, PROP_INIT_GAIN);
-    		*/
     		LCD_setcursor(2,0);
     		LCD_wrstring("SP:+     OFF:   ");
     		lcd_initial = false;
     		LCD_setcursor(1,2);
         }
         no_test_LCD();
-        //else
-
-        //set_PID_vals(row, col);
-
             NX3_readBtnSw(&btnsw);
             // Set which control measurement we're using
             if (btnsw & msk_BTN_NORTH)
@@ -366,23 +349,10 @@ int main()
                 }
             }
 
-            //
-
-
             delay_msecs(20);
             //set cursor location and turn on cursor
             LCD_setcursor(row,col);
             LCD_docmd(LCD_DISPLAYONOFF, LCD_CURSOR_ON);
-
-
-            // FEATURE: test array, correct increments
-            // if (btnsw & msk_BTN_WEST)   ++PID_gain[PID_current_sel];
-            // if (btnsw & msk_BTN_EAST)   --PID_gain[PID_current_sel];
-
-            // if incrementing more than 1:
-            // if (btnsw & msk_BTN_WEST)   ++PID_gain[PID_current_sel] += GAIN_INCREMENT ;
-            // if (btnsw & msk_BTN_EAST)   --PID_gain[PID_current_sel] -= GAIN_INCREMENT ;
-            // special case for offset?
 
             if (btnsw & msk_BTN_EAST)
             {
@@ -408,32 +378,18 @@ int main()
         if (rotcnt != old_rotcnt)
         {
             //scale rotary count to setpoint values
-        	LCD_docmd(LCD_DISPLAYONOFF, LCD_CURSOR_OFF);
+            LCD_docmd(LCD_DISPLAYONOFF, LCD_CURSOR_OFF);
             setpoint = MAX(VOLT_MIN, MIN((rotcnt/SETPOINT_SCALE), VOLT_MAX));
             voltstostrng(setpoint, sp);
-        	old_rotcnt = rotcnt;
+            old_rotcnt = rotcnt;
             LCD_setcursor(2, 3);
-            //LCD_wrstring("    ");
             LCD_wrstring(sp);
             LCD_setcursor(2, 3);
             LCD_wrstring('+');
-            //LCD_putnum(setpoint, 10);
         }
 
-        if (test == TEST_T_CALLS)  // Reserved for something special.  Prepare to be awesome. 
+        if (test == TEST_T_CALLS) //unused 
         {
-            // write the static info to display if necessary
-            // read rotary count and handle duty cycle changes
-            // limit duty cycle to between STEPDC_MIN and STEPDC_MAX
-            // PWM frequency does not change in this test
-            /*ROT_readRotcnt(&rotcnt);
-            if (rotcnt != old_rotcnt)
-            {
-                //scale rotary count to setpoint values
-                setpoint = MAX(VOLT_MIN, MIN(rotcnt/SETPOINT_SCALE, VOLT_MAX));
-                old_rotcnt = rotcnt;
-            }
-            DoTest_Track();*/
             next_test = TEST_INVALID;
             lcd_initial = true;
             delay_msecs(3000);
@@ -498,10 +454,6 @@ int main()
                 }
                 NX3_writeleds(0x00);
 
-                //delay_msecs(10);
-                //LCD_setcursor(2,0);
-                //LCD_wrstring("Hit RBtn to send");
-                //delay_msecs(500);
                 //FEATURE: wait for user input to send data over
                 NX3_readBtnSw(&btnsw);
                 if ((btnsw ^ old_btnsw) && (msk_BTN_ROT & btnsw))
@@ -538,9 +490,6 @@ int main()
                         if (count > 4096)
                         	count = 4095;
 
-                        //Convert from count to 'volts'
-                        //v = LIGHTSENSOR_Count2Volts(count);
-                        //v = (3.3 / 4095.0) * (count);
                         v = (-3.3 / 4095.0) * (count) + 3.3;
 
                         voltstostrng(v, s);
@@ -614,7 +563,6 @@ int main()
 
                 NX3_readBtnSw(&btnsw);
                 if (msk_BTN_ROT & btnsw)
-                //if ((btnsw ^ old_btnsw) && (msk_BTN_ROT & btnsw))
                 {
                     // light "Transfer" LED to indicate that data is being transmitted
                     // Show the traffic on the LCD
@@ -640,10 +588,6 @@ int main()
                         if (count > 4096)
                         	count = 4095;
 
-                        //Convert from count to 'volts'
-                        //NOTES: different types (Xuint32)
-                        //v = LIGHTSENSOR_Count2Volts((Xuint32) count);
-                        //v = (3.3 / 4095.0) * (count);
                         v = (-3.3 / 4095.0) * (count) + 3.3;
 
                         voltstostrng(v, s);
@@ -666,8 +610,6 @@ int main()
                     old_btnsw = btnsw;
                     next_test = TEST_INVALID;
                     delay_msecs(1000);
-                    //LCD_clrd();
-                    //LCD_docmd(LCD_DISPLAYONOFF, LCD_CURSOR_OFF);
                     lcd_initial = true;
                     delay_msecs(3000);
                 }
@@ -697,11 +639,6 @@ int main()
  * WEST buttons
  */
 
-void param_select()
-{
-;
-}
-
 
 void no_test_LCD()
 {
@@ -727,12 +664,6 @@ void no_test_LCD()
 		LCD_wrstring("   ");
 		LCD_setcursor(1, 12);
 		LCD_putnum(deriv_gain, 10);
-
-		// Write Setpoint
-		//LCD_setcursor(2, 3);
-		//LCD_wrstring("    ");
-		//LCD_setcursor(2, 3);
-		//LCD_putnum(setpoint, 10);
 
 		// Write Offset
 		LCD_setcursor(2, 13);
@@ -791,23 +722,11 @@ void set_PID_vals(row, col)
         }
     }
 
-    //
-
-
     delay_msecs(20);
     //set cursor location and turn on cursor 
     LCD_setcursor(row,col);
     LCD_docmd(LCD_DISPLAYONOFF, LCD_CURSOR_ON);
-    //LCD_docmd(LCD_CMD_DISPLAY, LCD_CURSOR_OFF);
 
-    // FEATURE: test array, correct increments
-    // if (btnsw & msk_BTN_WEST)   ++PID_gain[PID_current_sel];
-    // if (btnsw & msk_BTN_EAST)   --PID_gain[PID_current_sel];
-
-    // if incrementing more than 1:
-    // if (btnsw & msk_BTN_WEST)   ++PID_gain[PID_current_sel] += GAIN_INCREMENT ;
-    // if (btnsw & msk_BTN_EAST)   --PID_gain[PID_current_sel] -= GAIN_INCREMENT ;
-    // special case for offset?
 
     if (btnsw & msk_BTN_EAST)
     {
@@ -849,42 +768,37 @@ XStatus calc_bang()
     {
     	return -1;
     }
+
     //Wait for the LED output to settle before starting
     delay_msecs(1500);
 
     for (smpl_idx = 1; smpl_idx < NUM_FRQ_SAMPLES; smpl_idx++)
     {
-
-
         // get count from light sensor and convert to voltage 
-        // NOTES: conversion from u16 to Xuint32 in return value
         sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
 
-
-    	//volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
-    	        //volt_out = (3.3 / 4095.0) * (sample[smpl_idx]);
-    			volt_out = (-3.3 / 4095.0) * (sample[smpl_idx]) + 3.3;
-    	        //convert to voltage before incrementing
-
-    	        if (volt_out < setpoint)
-    	        {
-    	            Status = PWM_SetParams(&PWMTimerInst, pwm_freq, MAX_DUTY);
-    	            delay_msecs(1);
-    	            if (Status == XST_SUCCESS)
-    	            {
-    	                PWM_Start(&PWMTimerInst);
-    	            }
-    	        }
-    	        else
-    	        {
-    	            Status = PWM_SetParams(&PWMTimerInst, pwm_freq, MIN_DUTY);
-    	            delay_msecs(1);
-    	            if (Status == XST_SUCCESS)
-    	            {
-    	                PWM_Start(&PWMTimerInst);
-    	            }
-    	        }
-    	        delay_msecs(100);
+        //convert to voltage before incrementing
+        volt_out = (-3.3 / 4095.0) * (sample[smpl_idx]) + 3.3;
+    	       
+        if (volt_out < setpoint)
+        {
+            Status = PWM_SetParams(&PWMTimerInst, pwm_freq, MAX_DUTY);
+            delay_msecs(1);
+            if (Status == XST_SUCCESS)
+            {
+                PWM_Start(&PWMTimerInst);
+            }
+        }
+        else
+        {
+            Status = PWM_SetParams(&PWMTimerInst, pwm_freq, MIN_DUTY);
+            delay_msecs(1);
+            if (Status == XST_SUCCESS)
+            {
+                PWM_Start(&PWMTimerInst);
+            }
+        }
+        delay_msecs(100);
     }
     return XST_SUCCESS;
 }
@@ -893,69 +807,15 @@ XStatus calc_bang()
 /*************************************************************************************
  * This method calculates the voltage that should be output to the PWM peripheral.  
  * It takes the reading from the light sensor, scales it appropriately, calculates
- * the proportional value, converts to duty and outputs the value to the PWM params.
- * WARNING: Might be completely useless
+ * the P, I, and D values, converts it to the duty cycle value,  and outputs the 
+ * value to the PWM params.
  **************************************************************************************/
-
-void calc_prop()		// NOT USED?
-{
-    int duty_out;
-    double volt_out;
-    XStatus		Status;					// Xilinx return status
-    //u16 i=1;
-
-
-
-    for (smpl_idx = 1; smpl_idx < NUM_FRQ_SAMPLES; smpl_idx++)
-    {
-        delay_msecs(100);
-        // get count from light sensor and convert to voltage 
-        sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
-
-        //volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
-        //volt_out = (3.3 / 4095.0) * (sample[smpl_idx]);
-
-        volt_out = (-3.3 / 4095.0) * (sample[smpl_idx]) + 3.3;
-
-        //convert to voltage before incrementing
-        //smpl_idx++;
-
-        // Control offset is gotten from characterization
-        volt_out = offset + (setpoint - volt_out) * slope;
-
-        // Convert volts to duty_cycle
-        // implicit conversion 
-        duty_out = (volt_out) * (MAX_DUTY+1)/VOLT_MAX;
-
-        // establish bounds
-        if (duty_out < MIN_DUTY) duty_out = MIN_DUTY;
-        if (duty_out > MAX_DUTY) duty_out = MAX_DUTY;
-
-        // output voltage to PWM
-        Status = PWM_SetParams(&PWMTimerInst, pwm_freq, duty_out);
-        if (Status == XST_SUCCESS)
-        {							
-            PWM_Start(&PWMTimerInst);
-        }
-    }
-}
-
-
-
-
-/*************************************************************************************
- * This method calculates the voltage that should be output to the PWM peripheral.  
- * It takes the reading from the light sensor, scales it appropriately, calculates
- * the P, I, and D values, and outputs the value to the PWM params.
- **************************************************************************************/
-
 XStatus calc_PID()
 {
     double deriv, integral, error, prev_error = 0;
     double volt_out;
     int duty_out;
     XStatus		Status;					// Xilinx return status
-    //u16 i=1;
 
     	// stabilize the PWM output (and thus the lamp intensity) at the
         // minimum before starting the test
@@ -977,8 +837,6 @@ XStatus calc_PID()
 
         // get count from light sensor and convert to voltage 
         sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
-        //volt_out = LIGHTSENSOR_Count2Volts(sample[smpl_idx]);
-        //volt_out = (3.3 / 4095) * (sample[smpl_idx]);
         volt_out = (-3.3 / 4095.0) * (sample[smpl_idx]) + 3.3;
 
         //convert to voltage before incrementing
@@ -991,10 +849,6 @@ XStatus calc_PID()
         // calculate integral
         if (error < setpoint/10) integral += error;
         else integral = 0; 
-
-        // if we don't want integral or derivative calculation, set it to 0
-        if (!USE_INTEGRAL)  integral = 0;
-        if (!USE_DERIV)     deriv    = 0; 
 
         // Control offset is gotten from characterization
         volt_out = offset + (error * prop_gain) + (deriv * deriv_gain) + (integral * integral_gain);
@@ -1182,8 +1036,6 @@ XStatus DoTest_Characterize(void)
             return -1;
         }
 
-        //ECE544 Students:
-        // make the light sensor measurement
         sample[smpl_idx++] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
 
         n++;
@@ -1191,10 +1043,7 @@ XStatus DoTest_Characterize(void)
     }		
     frq_smple_interval = (timestamp - tss) / smpl_idx;
 
-    //ECE544 Students:
-    //Find the min and max values and set the scaling/offset factors to use for your convert to 'voltage' function.
-    //NOTE: It may also be useful to scale the actual 'count' values to a range of 0 - 4095 for the SerialCharter application to work correctly 
-
+    //Find min and max values to set scaling 
     for (i = 1; i < STEPDC_MAX ; i++)
     {
         if (sample[i] < freq_min_cnt)
@@ -1208,10 +1057,8 @@ XStatus DoTest_Characterize(void)
     }
 
     // Send min and max to set scaling and calculate slope and offset
-    //LIGHTSENSOR_SetScaling(freq_min_cnt, freq_max_cnt, &slope, &offset);
     diff = freq_max_cnt - freq_min_cnt;
     slope = 4095.0 / diff;
-    //offset = 0;
 
     is_scaled = true;
         return n;
@@ -1260,7 +1107,6 @@ XStatus do_init(void)
         return XST_FAILURE;
     }
 
-    //ECE544 Students:
     //Initialize LIGHTSENSOR peripheral
     Status = LIGHTSENSOR_Init(LIGHTSENSOR_BASEADDR);
     if (Status != XST_SUCCESS)
@@ -1389,8 +1235,6 @@ void update_lcd(int vin_dccnt, short frqcnt)
     LCD_setcursor(1, 11);
     LCD_wrstring(s);
 
-    // update the data
-    // ECE544 Students: Convert frequency count to 'volts'
     //v = LIGHTSENSOR_Count2Volts(frqcnt);
     //v = (3.3 / 4095.0) * (frqcnt);
     v = (-3.3 / 4095.0) * (frqcnt) + 3.3;
