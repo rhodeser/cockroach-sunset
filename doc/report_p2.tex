@@ -50,14 +50,19 @@
 	%\caption{Gameplay Block Diagram}
 		\label{LED}
 	\end{figure}
-
-
-%TODO Tasks: Pictures: diagram of our system, Serial chart graph results of each test. 
-% Code snippets needed: driver code, scaling, PWMDET, pushbutton logic
-
-%\tableofcontents
+	
 \newpage
-%Start of Document
+
+% -------------------------PROJECT DELIVERABLES -----------------------------------
+%A five to seven (5 to 7) page project report explaining the operation of your design, most notably your control algorithms and user interface (if it is noticeably different than what I suggested).  Please include at least one “interesting” graph showing the results from each of the control algorithms.  Each graph should be labeled with the control parameters you used to make the run. I’d like to see a characterization graph for your control system, as well. This graph should show circuit output response vs. control input. Please list the work done by each partner. Be sure to note any work that you borrowed from somebody else (other than me). I’d also like an estimate of how long you spent on the project and what problems you had to overcome.
+
+%Source code for your C application(s). Please “take ownership” of your application.  I want to see your program structure and comments, not mine. Your system.mhs, system.mss and system.ucf files.  All files regarding your new peripheral for the light sensor, including the Verilog hardware, and driver code.
+% ----------------------------------------------------------------------------------
+
+
+%TODO Tasks: Pictures: diagram of our system (in progress), Serial chart graph results of each test. 
+% Code snippets needed: driver code, scaling, pushbutton logic
+
 
 %Caren: You really won't have to mess with much formatting or Tex language here. 
 %If for right now you just want to edit in vim or notepad thats fine, you just can't test anything out.  At some point before our next project you should download the Latex software package.  
@@ -74,9 +79,6 @@
 \st{Webster's dictionary defines}
 This project demonstrates how closed-loop control can be used in modern applications.  Our embedded system monitored the output (brightness) of an LED with a light sensor, and calculated the corresponding PWM output to stabilize the brightness at the desired setpoint.  
 
-
-%TODO: Show diagram of closed loop control
-
  
 
 %	\begin{figure}[h]\centering
@@ -88,63 +90,104 @@ This project demonstrates how closed-loop control can be used in modern applicat
 
 \section{System Design}
 %TODO Include diagram of system, explain how each section connects with each other. 
-Embedded system includes:
-Micron RAM, lightsensor peripheral, GPIO pins for debug, N3eif peripheral to interface the PMOD rotary encoder and LCD display.  Our circuit board was connected through the other ports.  The PWM in and frequency out pins were...  
- 
+As seen in figure (include figure reference here) our embedded system uses...
+It also includes instruction and data caches, and an extra 
+ 8Kb local BRAM. 
+ The GPIO pins are only used for debugging purposes.
+ Our light sensor peripheral interacts with the circuit we built on a breadboard.  This connects the PWM generator to the LED, and receives the detected brightness from the light sensor through another pin. 
+ The Uartlite hardware sends the computed data to the external hardware serially through a USB port.  This data can then be seen using different programs, such as Putty or Serial Charter.  The graphs showing our results (reference) were created using Serial Charter. 
+ The N3EIF interface controls the communication to the LCD display and the rotary encoder.
 
 \section{Implementation}
 
 \subsection{Control Methodology}
 Being able to control a dynamic system is an integral part of many everyday systems.  Accomplishing this requires a feedback loop with an external measurement of the output being fed back into the system.  These systems can be controlled in a number of ways.  Two popular methods are \textbf{Bang Bang} and \textbf{PID}.   
 
-%TODO Possibly put in the control algorithms we used - although they don't really differ from Robin's very much
-
-
 \subsubsection{Bang Bang} 
 Bang bang is quite straightforward: if the output is lower than desired, the controller puts the control signal at its highest amount.  Likewise, if the output is higher than desired, the signal is set to the lowest level.  While sometimes effective, this is a crude and cheap method for controlling systems, and is usually only used in devices where accuracy is not extremely important. 
 
- 
+\vspace{12pt}
+
+ \begin{lstlisting}[caption=Bang Bang Algorithm, label=bang]		
+ 	 for (smpl_idx = 1; smpl_idx < NUM_FRQ_SAMPLES; smpl_idx++)
+ 	    {
+ 	        sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
+ 	        volt_out = (-3.3 / 4095.0) * (sample[smpl_idx]) + 3.3; 
+ 	        if (volt_out < setpoint)
+ 	        {
+ 	            Status = PWM_SetParams(&PWMTimerInst, pwm_freq, MAX_DUTY);
+ 	            delay_msecs(1);
+ 	            if (Status == XST_SUCCESS)
+ 	            {
+ 	                PWM_Start(&PWMTimerInst);
+ 	            }
+ 	        }
+ 	        else
+ 	        {
+ 	            Status = PWM_SetParams(&PWMTimerInst, pwm_freq, MIN_DUTY);
+ 	            delay_msecs(1);
+ 	            if (Status == XST_SUCCESS)
+ 	            {
+ 	                PWM_Start(&PWMTimerInst);
+ 	            }
+ 	        }
+ 	        delay_msecs(100);
+ 	    }
+  \end{lstlisting}
 
 \subsubsection{PID}
 The more prevalent method, PID, involves making multiple calculations to predict the accurately control the behavior of the output.  The proportional (P) method involves using the previous error margin to calculate the next appropriate one.  The integral (I) method calculates how the system behaves over time, and the derivative (D) calculates how fast the output is changing at that point in time.
 Using a specific arrangement of these parameters will yield a large increase in accuracy, so tuning the application is desirable.  When tuning, we first attempted to follow the Ziegler-Nichols method.  After understanding how each method changes the output, we modified the parameters as we saw fit to acquire the most accurate configuration for our control system.
 
+\vspace{12pt}
+
+ \begin{lstlisting}[caption=PID Algorithm, label=PID]		
+     for (smpl_idx = 1; smpl_idx < NUM_FRQ_SAMPLES; smpl_idx++)
+     {
+         delay_msecs(100);
+ 
+         // get count from light sensor and convert to voltage 
+         sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
+         volt_out = (-3.3 / 4095.0) * (sample[smpl_idx]) + 3.3;
+
+         // calculate derivative;
+         error = setpoint - volt_out;
+         deriv = error - prev_error;
+ 
+         // calculate integral
+         if (error < setpoint/10) integral += error;
+         else integral = 0; 
+ 
+         // Control offset is gotten from characterization
+         volt_out = offset + (error * prop_gain) + (deriv * deriv_gain) + (integral * integral_gain);
+         duty_out = (volt_out)* (MAX_DUTY+1)/VOLT_MAX;
+ 
+         // establish bounds
+         if (duty_out < 1) duty_out = 1;
+         if (duty_out > 99)duty_out = 99;
+ 
+         // activate PWM
+         Status = PWM_SetParams(&PWMTimerInst, pwm_freq, duty_out);
+         if (Status == XST_SUCCESS)	 PWM_Start(&PWMTimerInst);
+     } 
+  \end{lstlisting}
+  
+  
+
 
 \subsection{Peripheral Interface}
-The TSL237-S-LF-ND light to frequency converter outputs a period that directly corresponds to the intensity of the light emitted from the LED.  The PWM detection module receives this information and converts it to a ``count'', which is then scaled to fit within the parameters (between 0 and 4095) needed for our control calculations.  These functions are handled in the light sensor driver.  The driver also converts the scaled counts to a voltage, the unit of measure required to drive the PWM output.
+The \textbf{TSL237} light to frequency converter outputs a period that directly corresponds to the intensity of the light emitted from the LED.  The PWM detection module receives this information and converts it to a ``count'', which is then scaled to fit within the parameters (between 0 and 4095) needed for our control calculations.  These functions are handled in the light sensor driver.  The driver also converts the scaled counts to a voltage, the unit of measure required to drive the PWM output.
 
-% Include code here. 
-%
-\begin{lstlisting}[caption=Bang Bang Implementation, label=bang]		
-	 for (smpl_idx = 1; smpl_idx < NUM_FRQ_SAMPLES; smpl_idx++)
-	    {
-	        sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
-	        volt_out = (-3.3 / 4095.0) * (sample[smpl_idx]) + 3.3; 
-	        if (volt_out < setpoint)
-	        {
-	            Status = PWM_SetParams(&PWMTimerInst, pwm_freq, MAX_DUTY);
-	            delay_msecs(1);
-	            if (Status == XST_SUCCESS)
-	            {
-	                PWM_Start(&PWMTimerInst);
-	            }
-	        }
-	        else
-	        {
-	            Status = PWM_SetParams(&PWMTimerInst, pwm_freq, MIN_DUTY);
-	            delay_msecs(1);
-	            if (Status == XST_SUCCESS)
-	            {
-	                PWM_Start(&PWMTimerInst);
-	            }
-	        }
-	        delay_msecs(100);
-	    }
- \end{lstlisting}
+%  
+% Perhaps a subsubsection about the components to creating the embedded system?
+% JC, JD header and ucf file stuff?
+% Picture of breadboard?
 
+\subsection{Frequency detection}
+%TODO Include info about how the detection worked
+The measurements output by the lightsensor were received by a hardware module that interpreted the data.  This verilog program closely resembles the PWM detection module done in project 1.  It increments the count on each clock edge, depending on whether the input is high or low.  Once a full period is detected, the high count and period are sent to registers which are able to be read by the light sensor driver.  
 
 \subsection{User Controls} 
-%TODO: Describe program flow. 
 The program starts by characterizing the system.  This allows the initial scaling to be perform, which varies by the amount of light detected by the light sensor. After this is done, the default control parameter values are displayed and the user is given a chance to change them.  The type of test and starting input voltage can also be selected.  Once these have been configured, the user starts the test with the rotary button.  When it has finished, long pressing on the rotary button sends the data to the computer connected serially via the UART port.  If the user wants to change the test, they can modify the switch values and update the LCD by pressing on the rotary button.  While he user interface remained close to the recommended specifications, it also included a few features that made it amazingly incredible.
  
  
@@ -189,8 +232,6 @@ Show a few different examples of some good results and list the parameter values
 
 \section{Conclusion}
 
-Difficult project, good results, hours spent...
-
 Our work was split up as follows:
 
 	%table "Division of Tasks" 
@@ -210,16 +251,18 @@ Our work was split up as follows:
 		\caption {Division of Tasks} \label{Division of Tasks}
 	\end{center}
 	\end{table}
+	
+	
 	\subsection{Challenges}
 		
 		\begin{itemize}				
-		%TODO Fill these out
-		\item \textbf{Xilinx}: This ``tool'' screwed us over a lot.
-		\item \textbf{Hardware interfacing}: PWMDET errors
+		\item \textbf{``Tools''}: The Xilinx tool chain was quite a hassle to deal with.  There was also a problem connecting one of our circuit boards to the Nexys3.  Additionally, the UART serial USB connection also caused repeated BSOD's on our Windows 8 computer.
+		\item \textbf{Hardware interfacing}: Although we took the same module used in project one for the hardware PWM detection, it did not work.  After narrowing down this problem, we swapped the module out and were able to receive reliable results.
 		\item \textbf{Debugging}: Incorrect readings, 
-		\item \textbf{Typecasting}: Gave values converted incorrectly or with lost precision
-		\item \textbf{Integration}: We wrote them separately very early on, but it was hard to integrate and fix all the different issues
+		\item \textbf{Typecasting}: In several different places, using the wrong type gave us incorrect values.  Making sure each variable was initialize and cast to the correct type took time, and before this was done we received incorrect or imprecise values.
+		\item \textbf{Integration}: We divided the project into two different parts, which were both written in a relatively quick amount of time.  Given the number of components in this system, however, it was quite a challenge to integrate and fix all the different issues that occurred when they were merged together. 
 		\end{itemize}
 
+While this project is certainly good practice for the real world, the amount of problems we faced was quite numerous.  It is especially frustrating when the roadblocks we faced were not actually involving our code or the algorithms we were using.  Instead, much of our time was spent wasted on getting the tools to cooperate.  This lead to us spending at least 40 hours each on this project.  With that being said, the concept of closed-loop control was quite interesting, and the results we finally achieved were satisfying. 
 	
 \end{document}
