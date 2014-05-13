@@ -13,32 +13,26 @@
  * 18-Apr-13	RK		Created the first version from test_PmodCtlSys_r1
  * 23-Apr-13	RK		Moved PmodCtlSys functions to their own driver and header files
  * 24-Apr-14    RM      Modified to remove references to PmodCtlSys.h calls and use student-made peripheral instead
+ * May 2014	  ER & CZ	Modified to be used for project 2 in ECE544.
  *
  * Description:
  * ============
  * This program implements a minimal test program for the Control System Pmod
- * that will be used in ECE 544 Project 2.  The program uses a Xilinx timer/counter module in PWM mode
+ * that is used in ECE 544 Project 2.  The program uses a Xilinx timer/counter module in PWM mode
  * and a light sensor with a custom designed peripheral + driver.
  *
- * NOTE TO ECE 544 STUDENT
- *		Look for "//ECE544 Students:" in this program to see where edits need to be made in order
- * 		for this test application to work. There may, however, be other edits you'd like to (or need to)
- *		make elsewhere as well.
  *
- *		sw[1:0] = 00:		Use rotary knob to dial in the PWM duty cycle.  Read/display the
- *							the light sensor value in volts.
+ *		sw[1:0] = 00:		BangBang: Use the rotary encoder to set a setpoint. The program controls the system	
+ *							in using a bang-bang or on-off method: if the sensor indicates that the output of the 
+ *							LED is below the setpoint, turn the dutycycle to maximum. Otherwise drive it to minimum.
  *
- * 		sw[1:0] = 01:		Performs a step function on the PWM duty cycle.  Monitor/Save the response
- *							of the system. Press and hold the rotary encoder pushbutton to start the test.
- *                          Release the button when the "Run" (rightmost) LED turns off to upload the 
- *                          data via serial port to a PC. The step function goes from 1% duty cycle to
- *                          99% duty cycle.  
+ * 		sw[1:0] = 01:		Performs a PID control on the output of the LED.  Monitor/Control/Save the response
+ *							of the system. Use the pushbuttons to set the P(I)(D) gain values as well as the offset value.
+ *							Press and hold the rotary encoder pushbutton to start the test.
+ *                          Release the button when the display indicates that it is sending the data to be uploaded 
+ *                          via serial port to a PC. 
  *
- *`		sw[1:0] = 10:		Performs a step function on the PWM duty cycle.  Monitor/Save the response
- *							of the system. Press and hold the rotary encoder pushbutton to start the test.
- *                          Release the button when the "Run" (rightmost) LED turns off to upload the 
- *                          data via serial port to a PC. The step function goes from 99% duty cycle to
- *                          1% duty cycle.
+ *`		sw[1:0] = 10:		*RESERVED*
  *
  *		sw[1:0] = 11:		Characterizes the response to the system by stepping the PWM duty cycle from
  *							min (1%) to max (99%) after allowing the light sensor output to settle. Press and hold
@@ -110,7 +104,6 @@
 #define FIT_COUNT_1MSEC			(FIT_CLOCK_FREQ_HZ / 1000)	
 
 // Light Sensor Peripheral parameters
-// Add whatever constants you need to use your Light Sensor peripheral driver
 #define LIGHTSENSOR_BASEADDR	XPAR_LIGHTSENSOR_0_BASEADDR
 
 // Settings for PID calculations
@@ -118,7 +111,7 @@
 #define MIN_DUTY                        1
 #define MAX_DUTY                        99 
 #define GAIN_INCREMENT                  0.1
-//TODO Define parameters below correctly
+
 #define PROP_INIT_GAIN                  0
 #define INT_INIT_GAIN                   0
 #define DERIV_INIT_GAIN                 0
@@ -170,8 +163,8 @@ int						frq_smple_interval;			// approximate sample interval
 int						pwm_freq;					// PWM frequency 
 int						pwm_duty;					// PWM duty cycle
 int 					dc_start;					// Starting PWM duty cycle
+
 // Light Sensor Peripheral parameters
-// Add whatever global variables you need to use your Light Sensor peripheral driver
 double  setpoint;
 double  prop_gain, integral_gain, deriv_gain;
 double 	slope;
@@ -191,8 +184,6 @@ int						debugen = 0;				// debug level/flag
 
 
 /************************** Function Prototypes ******************************/
-XStatus 		DoTest_Track(void);											// Perform Tracking test
-XStatus			DoTest_Step(int dc_start);									// Perform Step test
 XStatus			DoTest_Characterize(void);									// Perform Characterization test
 
 XStatus			do_init(void);												// initialize system
@@ -412,15 +403,10 @@ int main()
             // have changed state since the last time the buttons and switches were read
             // msk_BTN_ROT & btnsw will test whether the rotary encoder was one of the
             // buttons that changed from 0 -> 1	
-            // CHANGE: press button to start test, will automatically send across 
+
             if ((btnsw ^ old_btnsw) && (msk_BTN_ROT & btnsw))  // do the step test and dump data  
             {										
-                // light "Run" (rightmost) LED to show the test has begun
-                // and do the test.  The test will return when the measured samples array
-                // has been filled.  Turn off the rightmost LED after the data has been 
-                // captured to let the user know he/she can release the button
-                // write the static info to the display if necessary
-                //
+
             /*Running Test (rotary pushbutton pushed): Show which control algorithm is running and
               display instructions for running test and uploading data.*/
 
@@ -440,7 +426,6 @@ int main()
                     LCD_wrstring(s);
                     LCD_setcursor(2,0);
                     LCD_wrstring("RotBtn to start");
-                    //LCD_wrstring("LED OFF-Release ");
                 }
 
                 NX3_writeleds(0x01);
@@ -515,10 +500,7 @@ int main()
                     delay_msecs(3000);
                 }
             }  // do the step test and dump data
-           /* else
-            {
-                next_test = test;
-            }*/
+
         }
         else if (test == TEST_CHARACTERIZE)  // Test 3 - Characterize Response
         {
@@ -777,7 +759,6 @@ XStatus calc_bang()
         // get count from light sensor and convert to voltage 
         sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
 
-        //convert to voltage before incrementing
         volt_out = (-3.3 / 4095.0) * (sample[smpl_idx]) + 3.3;
     	       
         if (volt_out < setpoint)
@@ -839,8 +820,6 @@ XStatus calc_PID()
         sample[smpl_idx] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
         volt_out = (-3.3 / 4095.0) * (sample[smpl_idx]) + 3.3;
 
-        //convert to voltage before incrementing
-        //smpl_idx++;
 
         // calculate derivative;
         error = setpoint - volt_out;
@@ -870,116 +849,6 @@ XStatus calc_PID()
 
 
 /*****
- * DoTest_Track() - Perform the Tracking test
- * 
- * This function uses the global "pwm_freq" and "pwm_duty" values to adjust the PWM
- * duty cycle and thus the intensity of the LED.  The function displays
- * the light detector reading as it tracks changes in the
- * LED intensity.  This test runs continuously until a different test is selected.
- * Returns XST_SUCCESS since this test can't fail.  Returns approximate sample interval
- * in the global variable "frq_sample_interval"
- *****/ 
-XStatus DoTest_Track(void)
-{
-    static int		old_pwm_freq = 0;			// old pwm_frequency and duty cycle
-    static int		old_pwm_duty = 200;			// these values will force the initial display	
-    u16				frq_cnt;					// light detector counts to display
-    XStatus			Status;						// Xilinx return status
-    unsigned		tss;						// starting timestamp
-
-    if ((pwm_freq != old_pwm_freq) || (pwm_duty != old_pwm_duty))
-    {	
-        // set the new PWM parameters - PWM_SetParams stops the timer
-        Status = PWM_SetParams(&PWMTimerInst, pwm_freq, pwm_duty);
-        if (Status == XST_SUCCESS)
-        {							
-            PWM_Start(&PWMTimerInst);
-        }
-
-        tss = timestamp;	
-
-        //make the light sensor measurement
-        //NOTES: BaseAddress yet to be defined from embsys 
-        frq_cnt = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
-
-        delay_msecs(1);
-        frq_smple_interval = timestamp - tss;
-
-        // update the display and save the frequency and duty
-        // cycle for next time
-        update_lcd(pwm_duty, frq_cnt);
-        old_pwm_freq = pwm_freq;
-        old_pwm_duty = pwm_duty;
-    }
-    return XST_SUCCESS;
-}
-
-
-
-/*****
- * DoTest_Step() - Perform the Step test
- * 
- * This function stabilizes the duty cycle at "dc_start" for
- * about a second and a half and then steps the duty cycle from min to max or
- * max to min depending on the test. NUM_FRQ_SAMPLES are collected
- * into the global array sample[].  An approximate sample interval
- * is written to the global variable "frq_smpl_interval"
- *****/ 
-XStatus DoTest_Step(int dc_start)
-{	
-    XStatus		Status;					// Xilinx return status
-    unsigned	tss;					// starting timestamp
-    //u16			frq_cnt;				// measured counts to display
-
-    // stabilize the PWM output (and thus the lamp intensity) before
-    // starting the test
-    Status = PWM_SetParams(&PWMTimerInst, pwm_freq, dc_start);
-    if (Status == XST_SUCCESS)
-    {							
-        PWM_Start(&PWMTimerInst);
-    }
-    else
-    {
-        return XST_FAILURE;
-    }
-    //Wait for the LED output to settle before starting
-    delay_msecs(1500);
-
-    if (dc_start > STEPDC_MAX / 2)
-    {
-        Status = PWM_SetParams(&PWMTimerInst, pwm_freq, STEPDC_MIN); 
-    }
-    else
-    {
-        Status = PWM_SetParams(&PWMTimerInst, pwm_freq, STEPDC_MAX); 
-    }		
-    if (Status == XST_SUCCESS)
-    {							
-        PWM_Start(&PWMTimerInst);
-        pwm_duty = dc_start;
-    }
-    else
-    {
-        return XST_FAILURE;
-    }
-
-    // gather the samples
-    smpl_idx = 0;
-    tss = timestamp;
-    while (smpl_idx < NUM_FRQ_SAMPLES)
-    {
-
-        //QUESTION: Why is this still here if we don't step?
-        //make the light sensor measurement
-        sample[smpl_idx++] = LIGHTSENSOR_Capture(LIGHTSENSOR_BASEADDR, slope, offset, is_scaled, freq_min_cnt);
-
-    }		
-    frq_smple_interval = (timestamp - tss) / NUM_FRQ_SAMPLES;
-    return XST_SUCCESS;
-}
-
-
-/*****
  * DoTest_Characterize() - Perform the Characterization test
  * 
  * This function starts the duty cycle at the minimum duty cycle and
@@ -995,9 +864,7 @@ XStatus DoTest_Characterize(void)
 {
     XStatus		Status;					// Xilinx return status
     unsigned	tss;					// starting timestamp
-    //u16		frq_cnt;				// counts to display
     int		n;					// number of samples
-    //Xuint32		freq, dutyfactor;		// current frequency and duty factor
     Xuint32         freq_max_cnt = 1000;
 
     int             i = 0;
@@ -1006,7 +873,6 @@ XStatus DoTest_Characterize(void)
 
     // stabilize the PWM output (and thus the lamp intensity) at the
     // minimum before starting the test
-    // QUESTION: PWM_STEPDC_MIN doesn't exist...
     pwm_duty = STEPDC_MIN;
     Status = PWM_SetParams(&PWMTimerInst, pwm_freq, pwm_duty);
     if (Status == XST_SUCCESS)
@@ -1235,8 +1101,7 @@ void update_lcd(int vin_dccnt, short frqcnt)
     LCD_setcursor(1, 11);
     LCD_wrstring(s);
 
-    //v = LIGHTSENSOR_Count2Volts(frqcnt);
-    //v = (3.3 / 4095.0) * (frqcnt);
+
     v = (-3.3 / 4095.0) * (frqcnt) + 3.3;
     voltstostrng(v, s);
     LCD_setcursor(2, 3);
