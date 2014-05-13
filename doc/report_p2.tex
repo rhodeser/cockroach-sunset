@@ -76,9 +76,7 @@
 
 
 \section{Introduction} 
-This project demonstrates how closed-loop control can be used in modern applications.  Our embedded system monitored the output (brightness) of an LED with a light sensor, and calculated the corresponding PWM output to stabilize the brightness at the desired setpoint.  
-
- 
+This project demonstrates how closed-loop control can be used in modern applications.  Our embedded system monitored the brightness of an LED with a light sensor and calculated the corresponding PWM output to stabilize the brightness at the desired setpoint.
 
 	\begin{figure}[h]\centering
 	\includegraphics[height=0.7\textwidth]{images/block_diagram.png}
@@ -88,14 +86,10 @@ This project demonstrates how closed-loop control can be used in modern applicat
 
 
 \section{System Design}
-%TODO Include diagram of system, explain how each section connects with each other. 
-As seen in figure \ref{diagram}, our embedded system uses...
-It also includes instruction and data caches, and an extra 
- 8Kb local BRAM. 
- The GPIO pins are only used for debugging purposes.
- Our light sensor peripheral interacts with the circuit we built on a breadboard.  This connects the PWM generator to the LED, and receives the detected brightness from the light sensor through another pin. 
- The Uartlite hardware sends the computed data to the external hardware serially through a USB port.  This data can then be seen using different programs, such as Putty or Serial Charter.  The graphs showing our results (reference) were created using Serial Charter. 
- The N3EIF interface controls the communication to the LCD display and the rotary encoder.
+%TODO Reference
+As seen in figure \ref{diagram}, our embedded system includes numerous peripherals and components. 
+ Our \textbf{lightsensor} peripheral interacts with the circuit we built on a breadboard.  This connects the textbf{PWM timer} to the LED, and receives the detected brightness from the light sensor through another pin.  The \textbf{Uartlite} peripheral sends the computed data to the external hardware serially through a USB port.  This data can then be seen using different programs, such as \emph{Putty} or \emph{Serial Charter}.  The graphs showing our results (reference) were created using \emph{Serial Charter}. The \textbf{N3EIF} interface controls the communication to the LCD display and the rotary encoder. In order to allow this functionality, 8KB of \textbf{BRAM} was added, and instruction and data caches were included as well.  While GPIO pins were technically included in our system, they existed simply for debugging purposes and therefore were not added to the diagram.
+
 
 \section{Implementation}
 
@@ -103,7 +97,7 @@ It also includes instruction and data caches, and an extra
 Being able to control a dynamic system is an integral part of many everyday systems.  Accomplishing this requires a feedback loop with an external measurement of the output being fed back into the system.  These systems can be controlled in a number of ways.  Two popular methods are \textbf{Bang Bang} and \textbf{PID}.   
 
 \subsubsection{Bang Bang} 
-Bang bang is quite straightforward: if the output is lower than desired, the controller puts the control signal at its highest amount.  Likewise, if the output is higher than desired, the signal is set to the lowest level.  While sometimes effective, this is a crude and cheap method for controlling systems, and is usually only used in devices where accuracy is not extremely important. 
+Bang bang is quite straightforward: if the output is lower than desired, the controller puts the control signal at its highest amount.  Likewise, if the output is higher than desired, the signal is set to the lowest level.  While sometimes effective, this is a crude and cheap method for controlling systems, and is usually only used in devices where accuracy is not extremely important. The algorithm used in our program is seen below.
 
 \vspace{12pt}
 
@@ -135,8 +129,8 @@ Bang bang is quite straightforward: if the output is lower than desired, the con
   \end{lstlisting}
 
 \subsubsection{PID}
-The more prevalent method, PID, involves making multiple calculations to predict the accurately control the behavior of the output.  The proportional (P) method involves using the previous error margin to calculate the next appropriate one.  The integral (I) method calculates how the system behaves over time, and the derivative (D) calculates how fast the output is changing at that point in time.
-Using a specific arrangement of these parameters will yield a large increase in accuracy, so tuning the application is desirable.  When tuning, we first attempted to follow the Ziegler-Nichols method.  After understanding how each method changes the output, we modified the parameters as we saw fit to acquire the most accurate configuration for our control system.
+The more prevalent method, PID, involves making multiple calculations to predict the accurately control the behavior of the output.  The proportional (P) method involves using the previous error margin to calculate the next appropriate one.  The integral (I) method calculates how the system behaves over time, and the derivative (D) calculates how fast the output is changing at that point in time.  Our implementation is seen in listing \ref{PID}. \\
+Using a specific arrangement of these parameters will yield a large increase in accuracy, so tuning the application is desirable.  When tuning, we first attempted to follow the \emph{Ziegler-Nichols} method.  After understanding how each method changes the output, we modified the parameters as we saw fit to acquire the most accurate configuration for our control system. 
 
 \vspace{12pt}
 
@@ -175,35 +169,39 @@ Using a specific arrangement of these parameters will yield a large increase in 
 
 
 \subsection{Peripheral Interface}
-The \textbf{TSL237} light to frequency converter outputs a period that directly corresponds to the intensity of the light emitted from the LED.  The PWM detection module receives this information and converts it to a ``count'', which is then scaled to fit within the parameters (between 0 and 4095) needed for our control calculations.  These functions are handled in the light sensor driver.  The driver was supposed to convert the scaled counts to a voltage however we decided to move that functionality to the program application.
+The \textbf{TSL237} light-to-frequency converter outputs a period that directly corresponds to the intensity of the light emitted from the LED.  The PWM detection module receives this information and converts it to a ``count'', which is then scaled to fit within the parameters (between 0 and 4095) needed for our control calculations.  These functions are handled in the light sensor driver.  The driver initially converted the scaled counts to a voltage, but we later decided to move that functionality to the program application.
 The peripheral has the following user-visible registers:
 	\begin {table}[h!]
 	\begin {center} 
 	\vspace{15pt}
 	
-	\begin{tabular}{||c|c|c||}\hline
-		\textbf{Register}	&	\textbf{Number}	&	\textbf{Description}		\\\hline
-		Control				&	slv\_reg0		&	Enable of the peripheral. Format: {RESERVED[30:0], EN}		\\\hline
-		Status				&	slv\_reg1		&	Current Settings of the peripheral. Format: {RESERVED[30:0], EN}		\\\hline
-		HighTime			&	slv\_reg2		&	Detected high time count. Format: HighTime[31:0]			\\\hline
-		Period				&	slv\_reg3		&	Detected period count. Format: Period[31:0]			\\\hline
-		SpareReg1			&	slv\_reg4		&	Spare register. No specific purpose. Format: RESERVED[31:0]			\\\hline
-		SpareReg2			&	slv\_reg5		&	Spare register. No specific purpose. Format: RESERVED[31:0]			\\\hline
+	\begin{tabular}{||c|c|c|c||}\hline
+		\textbf{Register}	&	\textbf{Number}	&	\textbf{Format} 	& 	\textbf{Description}		\\\hline
+		Control				&	slv\_reg0		&	{RESERVED[30:0], EN} &  Enable of the peripheral 		\\\hline
+		Status				&	slv\_reg1		&	{RESERVED[30:0], EN} & Current settings of the peripheral		\\\hline
+		HighTime			&	slv\_reg2		&    HighTime[31:0] 	&	Detected high time count  			\\\hline
+		Period				&	slv\_reg3		&  	Period[31:0] 		&	Detected period count 			\\\hline
+		SpareReg1			&	slv\_reg4		&	RESERVED[31:0] 		& 	No specific purpose 			\\\hline
+		SpareReg2			&	slv\_reg5		&	RESERVED[31:0] 		& 	No specific purpose 			\\\hline
 	\end{tabular}
 		\caption {Lightsensor peripheral registers} \label{registers}
 	\end{center}
 	\end{table} 
 	
 \subsection{Peripheral Driver}
-The \texttt{lightsensor} driver enables the software application to communicate with the external peripheral. It has six functions which are as follows:
+The \texttt{lightsensor} driver enables the software application to communicate with the external peripheral. It has six functions: 
 
 \begin{itemize}
-\item \textbf{LIGHTSENSOR\_Init()} - Initializes the \texttt{lightsensor} peripheral driver. It waits until the light sensor self test is done then it sets the control enable bit to 0.
-\item \textbf{LIGHTSENSOR\_Start()} - Starts the PWM detection in the peripheral. This function sets the Control Enable bit to 1.
-\item \textbf{LIGHTSENSOR\_Stop()} - Stops the PWM detection in the peripheral. This function sets the Control Enable bit to 0.
-\item \textbf{LIGHTSENSOR\_Capture()} - This function returns the period count by reading the PERIOD register. If the characterize function has been called already, the \texttt{is\_scaled} boolean would be set to true and the capture function returns the scaled period count based on this formula: count = (Xuint32)(slope * (period - min)+ 1).
-\item \textbf{LIGHTSENSOR\_SetScaling() } - Not implemented since we decided to do the scaling directly in the application program.
-\item \textbf{LIGHTSENSOR\_Count2Volts()} - Also not used because we do the conversion in the program directly.
+\item \textbf{LIGHTSENSOR\_Init()} Initializes the \texttt{lightsensor} peripheral driver. It waits until the light sensor self test is done then it sets the control enable bit to 0.
+\item \textbf{LIGHTSENSOR\_Start()} Starts the PWM detection in the peripheral. This function sets the Control Enable bit to 1.
+\item \textbf{LIGHTSENSOR\_Stop()} Stops the PWM detection in the peripheral. This function sets the Control Enable bit to 0.
+\item \textbf{LIGHTSENSOR\_Capture()} This function returns the period count by reading the PERIOD register. If the characterize function has been called already, the \texttt{is\_scaled} boolean would be set to true and the capture function returns the scaled period count based on the formula  
+\begin{equation}
+count = (Xuint32)(slope * (period - min)+ 1); \nonumber
+\end{equation}
+
+\item \textbf{LIGHTSENSOR\_SetScaling()} Not implemented since we decided to do the scaling directly in the application program.
+\item \textbf{LIGHTSENSOR\_Count2Volts()} Also not used because we do the conversion in the program directly.
 \end{itemize}
 
 %  
@@ -216,7 +214,7 @@ The \texttt{lightsensor} driver enables the software application to communicate 
 The measurements output by the light sensor were received by a hardware module that interpreted the data.  This Verilog program closely resembles the PWM detection module done in project 1.  It increments the count on each clock edge, depending on whether the input is high or low.  Once a full period is detected, the high count and period are sent to registers which are able to be read by the light sensor driver.  
 
 \subsection{User Controls} 
-The program starts by characterizing the system.  This allows the initial scaling to be performed, which varies by the amount of light detected by the light sensor. After this is done, the default control parameter values are displayed and the user is given a chance to change them.  The type of test and starting input voltage can also be selected.  Once these have been configured, the user starts the test with the rotary button.  When it has finished, long pressing on the rotary button sends the data to the computer connected serially via the UART port.  If the user wants to change the test, they can modify the switch values and update the LCD by pressing on the rotary button.  While he user interface remained close to the recommended specifications, it also included a few features that made it amazingly incredible.
+The program starts by characterizing the system.  This allows the initial scaling to be performed, which varies by the amount of light detected by the light sensor. After this is done, the default control parameter values are displayed and the user is given a chance to change them.  The type of test and starting input voltage can also be selected.  Once these have been configured, the user starts the test with the rotary button.  When it has finished, long pressing on the rotary button sends the data to the computer connected serially via the UART port.  If the user wants to change the test, they can modify the switch values and update the LCD by pressing on the rotary button.  While the user interface remained close to the recommended specifications, it also included a few features that made it amazingly incredible. The control assignments are seen in table \ref{controls}.
  
  
 	\begin {table}[h!]
@@ -250,24 +248,63 @@ The program starts by characterizing the system.  This allows the initial scalin
 \section{Results}
 
 %TODO: Include graphs of our characterization and other stuff, with all the variables and the setpoint stuff.  
+% Caren: just put your screenshots in the images folder and label them exactly how I've put them below.  Then just put any descriptions and specifications (setpoint, offset, PID values, etc...) and maybe how acceptable they seemed.  I'll take care of the rest.
+% From Robin: Please include at least one “interesting” graph showing the results from each of the control algorithms.  Each graph should be labeled with the control parameters you used to make the run. I’d like to see a characterization graph for your control system, as well. This graph should show circuit output response vs. control input.
+
 \subsection{Characterization}
-Fairly linear
+Fairly linear, why a drop off at the end?
+
+%	\begin{figure}[h]\centering
+%	\includegraphics[height=0.7\textwidth]{images/characterization.png}
+%	\caption{Characterization of light sensor}
+%		\label{characterization}
+%	\end{figure}
+
 \subsection{Bang Bang}
-Oscillates back and forth with an error of ...?
+Oscillates back and forth with an error of ...? Was this as expected?
+
+%	\begin{figure}[h]\centering
+%	\includegraphics[height=0.7\textwidth]{images/bang_bang.png}
+%	\caption{Results using Bang Bang Control}
+%		\label{bang_bang}
+%	\end{figure}
+
+	
 \subsection{PID}
 Show a few different examples of some good results and list the parameter values.
+How well did we do?
 
+%	\begin{figure}[h]\centering
+%	\includegraphics[height=0.7\textwidth]{images/PID.png}
+%	\caption{Results using PID Control}
+%		\label{PID}
+%	\end{figure}
 
+%	\begin{figure}[h]\centering
+%	\includegraphics[height=0.7\textwidth]{images/PID2.png}
+%	\caption{Results using PID Control}
+%		\label{PID2}
+%	\end{figure}
+
+%	\begin{figure}[h]\centering
+%	\includegraphics[height=0.7\textwidth]{images/PID3.png}
+%	\caption{Results using PID Control}
+%		\label{PID3}
+%	\end{figure}
+
+%... not sure how many we need
+
+	
 \section{Conclusion}
 
-Our work was split up as follows:
+We split up the project tasks in the following manner:
 
 	%table "Division of Tasks" 
 	\begin {table}[H]
 	\begin {center} 
 	
 	\begin{tabular}{||l|c|c|c|c||}\hline	
-										& Erik  		& Caren  				\\\hline
+		\textbf{Task}					& \textbf{Erik} & \textbf{Caren}  				\\\hline
 	Peripheral							&	 			&	\checkmark			\\\hline
 	Lightsensor Driver					&	 			&	\checkmark			\\\hline
 	User application					&	\checkmark	&						\\\hline
@@ -284,9 +321,8 @@ Our work was split up as follows:
 	\subsection{Challenges}
 		
 		\begin{itemize}				
-		\item \textbf{``Tools''}: The Xilinx tool chain was quite a hassle to deal with.  There was also a problem connecting one of our circuit boards to the Nexys3.  Additionally, the UART serial USB connection also caused repeated BSOD's on our Windows 8 computer.
+		\item \textbf{Tools}: The Xilinx tool chain was quite a hassle to deal with.  There was also a problem connecting one of our circuit boards to the Nexys3.  Additionally, the UART serial USB connection also caused repeated BSOD's on our computer.
 		\item \textbf{Hardware interfacing}: Although we took the same module used in project one for the hardware PWM detection, it did not work.  After narrowing down this problem, we swapped the module out and were able to receive reliable results.
-		\item \textbf{Debugging}: Incorrect readings, 
 		\item \textbf{Typecasting}: In several different places, using the wrong type gave us incorrect values.  Making sure each variable was initialize and cast to the correct type took time, and before this was done we received incorrect or imprecise values.
 		\item \textbf{Integration}: We divided the project into two different parts, which were both written in a relatively quick amount of time.  Given the number of components in this system, however, it was quite a challenge to integrate and fix all the different issues that occurred when they were merged together. 
 		\end{itemize}
