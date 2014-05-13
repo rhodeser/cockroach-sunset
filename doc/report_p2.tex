@@ -8,6 +8,8 @@
 \usepackage{array}
 \usepackage{sectsty}
 \usepackage{soul}
+\usepackage{float}
+\restylefloat{table}
 
 \lhead{ECE544: Embedded Systems on FPGAs}
 
@@ -88,7 +90,7 @@ This project demonstrates how closed-loop control can be used in modern applicat
 \section{System Design}
 %TODO Reference
 As seen in figure \ref{diagram}, our embedded system includes numerous peripherals and components. 
- Our \textbf{lightsensor} peripheral interacts with the circuit we built on a breadboard.  This connects the textbf{PWM timer} to the LED, and receives the detected brightness from the light sensor through another pin.  The \textbf{Uartlite} peripheral sends the computed data to the external hardware serially through a USB port.  This data can then be seen using different programs, such as \emph{Putty} or \emph{Serial Charter}.  The graphs showing our results (reference) were created using \emph{Serial Charter}. The \textbf{N3EIF} interface controls the communication to the LCD display and the rotary encoder. In order to allow this functionality, 8KB of \textbf{BRAM} was added, and instruction and data caches were included as well.  While GPIO pins were technically included in our system, they existed simply for debugging purposes and therefore were not added to the diagram.
+ Our \textbf{lightsensor} peripheral interacts with the circuit we built on a breadboard.  This connects the \textbf{PWM timer} to the LED (through pin 7), and receives the detected brightness from the light sensor through another pin (pin 9).  The \textbf{Uartlite} peripheral sends the computed data to the external hardware serially through a USB port.  This data can then be seen using different programs, such as \emph{Putty} or \emph{Serial Charter}.  The graphs showing our results (reference) were created using \emph{Serial Charter}. The \textbf{N3EIF} interface controls the communication to the LCD display and the rotary encoder. In order to allow this functionality, 8KB of \textbf{BRAM} was added, and instruction and data caches were included as well.  While GPIO pins were technically included in our system, they existed simply for debugging purposes and therefore were not added to the diagram.
 
 
 \section{Implementation}
@@ -170,8 +172,9 @@ Using a specific arrangement of these parameters will yield a large increase in 
 
 \subsection{Peripheral Interface}
 The \textbf{TSL237} light-to-frequency converter outputs a period that directly corresponds to the intensity of the light emitted from the LED.  The PWM detection module receives this information and converts it to a ``count'', which is then scaled to fit within the parameters (between 0 and 4095) needed for our control calculations.  These functions are handled in the light sensor driver.  The driver initially converted the scaled counts to a voltage, but we later decided to move that functionality to the program application.
-The peripheral has the following user-visible registers:
-	\begin {table}[h!]
+The peripheral has the user-visible registers described in table \ref{registers}.
+
+	\begin {table}[H]
 	\begin {center} 
 	\vspace{15pt}
 	
@@ -200,8 +203,18 @@ The \texttt{lightsensor} driver enables the software application to communicate 
 count = (Xuint32)(slope * (period - min)+ 1); \nonumber
 \end{equation}
 
-\item \textbf{LIGHTSENSOR\_SetScaling()} Not implemented since we decided to do the scaling directly in the application program.
-\item \textbf{LIGHTSENSOR\_Count2Volts()} Also not used because we do the conversion in the program directly.
+\item \textbf{LIGHTSENSOR\_SetScaling()} Not implemented since we decided to do the scaling directly in the application program. Here is what the scaling looks like in the code:
+\begin{equation}
+diff = freq\_max\_cnt - freq\_min\_cnt; \nonumber
+\end{equation}
+\begin{equation}
+slope = 4095.0 / diff; \nonumber
+\end{equation}
+
+\item \textbf{LIGHTSENSOR\_Count2Volts()} Also not used because we do the conversion in the program directly. Here is what the conversion looks like in the code:
+\begin{equation}
+volt\_out = (-3.3 / 4095.0) * (sample[smpl\_idx]) + 3.3;  \nonumber
+\end{equation}
 \end{itemize}
 
 %  
@@ -252,39 +265,44 @@ The program starts by characterizing the system.  This allows the initial scalin
 % From Robin: Please include at least one “interesting” graph showing the results from each of the control algorithms.  Each graph should be labeled with the control parameters you used to make the run. I’d like to see a characterization graph for your control system, as well. This graph should show circuit output response vs. control input.
 
 \subsection{Characterization}
-Fairly linear, why a drop off at the end?
+Our characterization is fairly linear. It drops off at the end because the stepping from high to low ends at the 99th sample.
 
-%	\begin{figure}[h]\centering
-%	\includegraphics[height=0.7\textwidth]{images/characterization.png}
-%	\caption{Characterization of light sensor}
-%		\label{characterization}
-%	\end{figure}
+	\begin{figure}[H]\centering
+	\includegraphics[height=0.7\textwidth]{images/characterize.png}
+	\caption{Characterization of light sensor}
+		\label{characterization}
+	\end{figure}
 
 \subsection{Bang Bang}
-Oscillates back and forth with an error of ...? Was this as expected?
+Oscillates back and forth around the setpoint. 
 
-%	\begin{figure}[h]\centering
-%	\includegraphics[height=0.7\textwidth]{images/bang_bang.png}
-%	\caption{Results using Bang Bang Control}
-%		\label{bang_bang}
-%	\end{figure}
+	\begin{figure}[H]\centering
+	\includegraphics[height=0.7\textwidth]{images/BBh146.png}
+	\caption{Results using Bang Bang Control: setpoint=1.46 , starting from Vin high}
+		\label{bang_bang_h}
+	\end{figure}
+	
+	\begin{figure}[H]\centering
+	\includegraphics[height=0.7\textwidth]{images/BBl146.png}
+	\caption{Results using Bang Bang Control: setpoint=1.46 , starting from Vin low}
+		\label{bang_bang_l}
+	\end{figure}
 
 	
 \subsection{PID}
-Show a few different examples of some good results and list the parameter values.
-How well did we do?
+The following figures show some accurate results:
 
-%	\begin{figure}[h]\centering
-%	\includegraphics[height=0.7\textwidth]{images/PID.png}
-%	\caption{Results using PID Control}
-%		\label{PID}
-%	\end{figure}
+	\begin{figure}[H]\centering
+	\includegraphics[height=0.7\textwidth]{images/P3-1I1-1D1-2H1-26O2.png}
+	\caption{Results using PID Control: P gain = 3.1, I gain = 1.1, D gain = 2.1, Offset = 2 and setpoint = 1.26. (starting from Vin High)}
+		\label{PID}
+	\end{figure}
 
-%	\begin{figure}[h]\centering
-%	\includegraphics[height=0.7\textwidth]{images/PID2.png}
-%	\caption{Results using PID Control}
-%		\label{PID2}
-%	\end{figure}
+	\begin{figure}[H]\centering
+	\includegraphics[height=0.7\textwidth]{images/P3-1I1-1D1-2L1-26O2.png}
+	\caption{Results using PID Control: P gain = 3.1, I gain = 1.1, D gain = 2.1, Offset = 2 and setpoint = 1.26. (starting from Vin Low)}
+		\label{PID2}
+	\end{figure}
 
 %	\begin{figure}[h]\centering
 %	\includegraphics[height=0.7\textwidth]{images/PID3.png}
