@@ -76,21 +76,20 @@
 
 
 \section{Introduction} 
-\st{Webster's dictionary defines}
 This project demonstrates how closed-loop control can be used in modern applications.  Our embedded system monitored the output (brightness) of an LED with a light sensor, and calculated the corresponding PWM output to stabilize the brightness at the desired setpoint.  
 
  
 
-%	\begin{figure}[h]\centering
-%	\includegraphics[height=0.6\textwidth]{block_diagram.png}
-%	\caption{PWM Block Diagram}
-%		\label{diagram}
-%	\end{figure}
+	\begin{figure}[h]\centering
+	\includegraphics[height=0.7\textwidth]{images/block_diagram.png}
+	\caption{Block Diagram of Control System}
+		\label{diagram}
+	\end{figure}
 
 
 \section{System Design}
 %TODO Include diagram of system, explain how each section connects with each other. 
-As seen in figure (include figure reference here) our embedded system uses...
+As seen in figure \ref{diagram} our embedded system uses...
 It also includes instruction and data caches, and an extra 
  8Kb local BRAM. 
  The GPIO pins are only used for debugging purposes.
