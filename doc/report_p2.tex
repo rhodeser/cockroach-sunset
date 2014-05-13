@@ -176,12 +176,38 @@ Using a specific arrangement of these parameters will yield a large increase in 
 
 
 \subsection{Peripheral Interface}
-The \textbf{TSL237} light to frequency converter outputs a period that directly corresponds to the intensity of the light emitted from the LED.  The PWM detection module receives this information and converts it to a ``count'', which is then scaled to fit within the parameters (between 0 and 4095) needed for our control calculations.  These functions are handled in the light sensor driver.  The driver also converts the scaled counts to a voltage, the unit of measure required to drive the PWM output.
+The \textbf{TSL237} light to frequency converter outputs a period that directly corresponds to the intensity of the light emitted from the LED.  The PWM detection module receives this information and converts it to a ``count'', which is then scaled to fit within the parameters (between 0 and 4095) needed for our control calculations.  These functions are handled in the light sensor driver.  The driver was supposed to convert the scaled counts to a voltage however we decided to move that functionality to the program application.
+The peripheral has the following user-visible registers:
+	\begin {table}[h!]
+	\begin {center} 
+	\vspace{15pt}
+	
+	\begin{tabular}{||c|c|c||}\hline
+		\textbf{Register}	&	\textbf{Number}	&	\textbf{Description}		\\\hline
+		Control				&	slv_reg0		&	Enable of the peripheral. Format: {RESERVED[30:0], EN}		\\\hline
+		Status				&	slv_reg1		&	Current Settings of the peripheral. Format: {RESERVED[30:0], EN}		\\\hline
+		HighTime			&	slv_reg2		&	Detected high time count. Format: HighTime[31:0]			\\\hline
+		Period				&	slv_reg3		&	Detected period count. Format: Period[31:0]			\\\hline
+		SpareReg1			&	slv_reg4		&	Spare register. No specific purpose. Format: RESERVED[31:0]			\\\hline
+		SpareReg2			&	slv_reg5		&	Spare register. No specific purpose. Format: RESERVED[31:0]			\\\hline
+	\end{tabular}
+		\caption {Lightsensor peripheral registers} \label{registers}
+	\end{center}
+	\end{table} 
+	
+\subsection{Peripheral Driver}
+The lightsensor driver enables the software application to communicate with the external peripheral. It has six functions which are as follows.
+\textbf{LIGHTSENSOR_Init()} - Initializes the lightsensor peripheral driver. It waits until the light sensor self test is done then it sets the control enable bit to 0.
+\textbf{LIGHTSENSOR_Start()} - Starts the PWM detection in the peripheral. This function sets the Control Enable bit to 1.
+\textbf{LIGHTSENSOR_Stop()} - Stops the PWM detection in the peripheral. This function sets the Control Enable bit to 0.
+\textbf{LIGHTSENSOR_Capture()} - This function returns the period count by reading the PERIOD register. If the characterize function has been called already, the is_scaled boolean would be set to true and the capture function returns the scaled period count based on this formula: count = (Xuint32)(slope * (period - min)+ 1).
+\textbf{LIGHTSENSOR_SetScaling() } - Not implemented since we decided to do the scaling directly in the application program.
+\textbf{LIGHTSENSOR_Count2Volts()} - Also not used because we do the conversion in the program directly.
 
 %  
 % Perhaps a subsubsection about the components to creating the embedded system?
-% JC, JD header and ucf file stuff?
-% Picture of breadboard?
+% JC, JD header and ucf file stuff? (no need)
+% Picture of breadboard? (no need)
 
 \subsection{Frequency detection}
 %TODO Include info about how the detection worked
