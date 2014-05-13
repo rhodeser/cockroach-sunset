@@ -197,6 +197,7 @@ XStatus LIGHTSENSOR_Stop(u32 BaseAddress);
  * @param boolean is_scaled:
  * 			If is_scaled == true, return scaled count [0:4095]
  * 			Else return actual count
+ * @param min minimum non-scaled detected count
  *
  * @return
  * 		- period count

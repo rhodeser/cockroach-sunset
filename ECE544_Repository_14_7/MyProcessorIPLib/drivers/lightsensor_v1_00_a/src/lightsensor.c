@@ -64,10 +64,6 @@ XStatus LIGHTSENSOR_Start(u32 BaseAddress)
 {
 		LIGHTSENSOR_mWriteCONTROL(BaseAddress, 0x00000001);
 
-		// Read the status register to make sure it has been enabled
-		//if ( LIGHTSENSOR_mReadSTATUS(BaseAddress) != (Xuint32) 0x00000001)
-		//		return XST_FAILURE;
-
 		return XST_SUCCESS;
 }
 
@@ -87,10 +83,6 @@ XStatus LIGHTSENSOR_Stop(u32 BaseAddress)
 {
 		LIGHTSENSOR_mWriteCONTROL(BaseAddress, 0x00000000);
 
-		// Read the status register to make sure it has been enabled
-		//if ( LIGHTSENSOR_mReadSTATUS(BaseAddress) != (Xuint32) 0x00000000)
-		//		return XST_FAILURE;
-
 		return XST_SUCCESS;
 }
 
@@ -103,6 +95,7 @@ XStatus LIGHTSENSOR_Stop(u32 BaseAddress)
  * @param boolean is_scaled:
  * 			If is_scaled == true, return scaled count [0:4095]
  * 			Else return actual count
+ * @param min	minimum non-scaled detected count
  *
  * @return
  * 		- period count
@@ -111,20 +104,16 @@ XStatus LIGHTSENSOR_Stop(u32 BaseAddress)
 Xuint32 LIGHTSENSOR_Capture(u32 BaseAddress, double slope, Xuint32 offset, bool is_scaled, Xuint32 min)
 {
 		Xuint32 count;
-		volatile Xuint32 period, freq;
+		volatile Xuint32 period;
 
 		period = LIGHTSENSOR_mReadPERIOD(BaseAddress);
-        //freq = 66666666 / period;
 
 		if (is_scaled)	// already characterized
 		{
-				count = (Xuint32)(slope * (freq - min)+ 1);
-				//if (count > 4095)
-			    //		count = 4095;
+				count = (Xuint32)(slope * (period - min)+ 1);
 		}
 		else			// in characterize function
 		{
-				//count = (Xuint32)freq;
 				count = period;
 		}
 
@@ -147,11 +136,7 @@ Xuint32 LIGHTSENSOR_Capture(u32 BaseAddress, double slope, Xuint32 offset, bool 
  */
 XStatus LIGHTSENSOR_SetScaling(Xuint32 maxCount, Xuint32 minCount, double *slope, Xuint32 *offset)
 {
-		double diff;
-		diff = maxCount - minCount;
-
-		*slope = 4095.0/diff;
-		*offset = minCount;
+		// NOT used. Instead calculation is done in the app.
 
 		return XST_SUCCESS;
 }
@@ -169,6 +154,7 @@ XStatus LIGHTSENSOR_SetScaling(Xuint32 maxCount, Xuint32 minCount, double *slope
  */
 double LIGHTSENSOR_Count2Volts(Xuint32 scaledCount)
 {
+		// NOT used. calculation done in the app.
 		double volts;
 		volts = (3.3 / 4095.0) * (scaledCount);
 
