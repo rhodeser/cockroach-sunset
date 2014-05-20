@@ -2,8 +2,8 @@
  *
  * Copyright (c) 2012, 2013, 2014, Portland State University by Roy Kravitz.  All rights reserved.
  *
- * Author:		<your name>
- * Date:		<the date>
+ * Author:		Caren Zgheib
+ * Date:		19-May-2014
  * Revision:	2.0
  *
  * Revision History:
@@ -11,17 +11,17 @@
  * 	21-Feb-2012		RK		Created this program from the xilkernel sample application produced by SDK
  * 	16-May-2013		RK		Updated the program for Nexys3 board and revised homework 2 assignment
  *	12-May-2014		RK		Minor changes to ease support for both Nexys 3 and Nexys 4.  No functional changes
- *  xx-xxx-xxxx		xx		<your comment>
+ *  19-May-2014		CZ		Edited the macros to match my implementation of the system and added the initialization code
  *
  * 	Description:
  * 	------------
  * 	This program implements ECE 544 Project #3.  It is a Xilinx-based design that is meant to be a learning tool
  * 	for incorporating several of the key functions provided by Xilkernel.   The application sets up 4 independent
- * 	threads.  Thread 1 periodically reads the switches on the FPGA developmengt board and sends an update to the LED thread.
+ * 	threads.  Thread 1 periodically reads the switches on the FPGA development board and sends an update to the LED thread.
  * 	Thread 2 responds to pushbutton press interrupts and sends an update to the LED thread whenever the state of
  * 	any of the pushbuttons on the FPGA development board change.   Thread 3 writes the new pushbutton and switch state to the
  * 	LEDs.   The three threads communicate via a message queue.  Thread 1 communicates to its interrupt handler through
- * 	the use of a semaphore.  The application also makes use of the Xiline watchdog timer.
+ * 	the use of a semaphore.  The application also makes use of the Xilinx watchdog timer.
  * 	The 4th thread (the master thread) sets up the Microblaze, initializes the peripherals, creates the other threads and
  * 	the semaphore and then enters a main loop where it wakes up periodically to reset the WDT.  Status messages are sent
  * 	via STDOUT through the USB serial port which can be connected to a PC running a terminal emulator such as putty.
@@ -57,7 +57,6 @@
 
 
 // Declarations
-// SOME OF THESE MAY NEED TO BE MODIFIED FOR YOUR SYSTEM'S xparameters.h
 #define BTN_GPIO_DEVICEID		XPAR_PUSH_BUTTONS_4BITS_DEVICE_ID
 #define SW_GPIO_DEVICEID		XPAR_XPS_GPIO_0_DEVICE_ID
 #define LED_GPIO_DEVICEID		XPAR_LEDS_8BITS_DEVICE_ID
@@ -71,6 +70,11 @@
 #define BTN_GPIO_INTR_NUM		XPAR_XPS_INTC_0_PUSH_BUTTONS_4BITS_IP2INTC_IRPT_INTR
 #define WDT_INTR_NUM			XPAR_XPS_INTC_0_XPS_TIMEBASE_WDT_0_WDT_INTERRUPT_INTR
 
+// Microblaze cache parameters
+#define USE_ICACHE				XPAR_MICROBLAZE_0_USE_ICACHE
+#define USE_DCACHE				XPAR_MICROBLAZE_0_USE_DCACHE
+#define USE_DCACHE_WRITEBACK	XPAR_MICROBLAZE_DCACHE_USE_WRITEBACK
+
 // macro functions
 #define MIN(a, b)  				( ((a) <= (b)) ? (a) : (b) )
 #define MAX(a, b)  				( ((a) >= (b)) ? (a) : (b) )
@@ -79,6 +83,7 @@
 XGpio BTNInst, SWInst, LEDInst;
 XTmrCtr TMRCTR1Inst;
 XWdtTb WDTInst;
+
 
 // Message passing variables
 typedef struct					// LED message definition
@@ -93,6 +98,8 @@ struct msqid_ds	led_msgstats;	// statistics from message queue
 // Synchronization variables
 sem_t btn_press_sema;			// semaphore between clock tick ISR and the clock main thread
 volatile u32 btn_state;			// button state - shared between button handler and button thread
+volatile bool system_running;	// used for tickling the WDT
+static volatile int WdtExpired;	// set when the WDT expires
 
 // Function declarations
 void* master_thread(void *arg);
@@ -117,12 +124,16 @@ int main()
 		xil_printf("Please power cycle or reset the system\n\r");
 		return -1;
     }
-    
+
 	// check if WDT expired and caused the reset - if so, don't start
 	if (XWdtTb_IsWdtExpired(&WDTInst))
 	{
 	 	// it's true, the WDT expired.
 	 	//***** INSERT YOUR WDT RECOVERY CODE HERE ******//
+
+		// Set the system_running flag ???????????????
+		system_running = true;
+		xil_printf("WARNING: RECOVERED FROM RESET\n\r");
 	}
 
     // Initialize xilkernel
@@ -158,13 +169,15 @@ void* master_thread(void *arg)
     xil_printf("----------------------------------------------------------------------------\r\n");
     xil_printf("This Xilkernel based application reads the buttons and switches on the FPGA \r\n"
                "development board and displays them on the LEDs.  Even though the application is\r\n"
-               "simple it uses sever of the synchronization and interprocess communication\r\n"
+               "simple it uses several of the synchronization and interprocess communication\r\n"
                "capabilities offered in the Xilkernel\r\n\r\n"
                "To demonstrate, press any of the buttons and/or flip switches on the board.\r\n"
                "The current state of the buttons and switches should be displayed on the LEDs\r\n");
     xil_printf("----------------------------------------------------------------------------\r\n\r\n\r\n");;
 
     xil_printf("MASTER: Master Thread Starting\r\n");
+
+    system_running = true;
 
     // set the priority of all but the master thread to 1.  The master thread runs at priority 0
     // because it is responsible for tickling the WDT.
@@ -224,7 +237,7 @@ void* master_thread(void *arg)
     enable_interrupt(BTN_GPIO_INTR_NUM);
 	enable_interrupt(WDT_INTR_NUM);
 	xil_printf("MASTER: Interrupts have been enabled\r\n");
-	
+
 	XWdtTb_Start(&WDTInst);
 	xil_printf("MASTER: Watchdog timer has been started\r\n");
 
@@ -232,6 +245,11 @@ void* master_thread(void *arg)
 	while(1)
 	{
 		//***** INSERT YOUR MASTER THREAD CODE HERE ******//
+		enable_interrupt(BTN_GPIO_INTR_NUM);
+		//enable_interrupt(WDT_INTR_NUM);
+		system_running = true;
+		//sleep(100);
+
 	}
 	
 	return NULL;
@@ -265,8 +283,67 @@ void* leds_thread(void *arg)
 // init_peripherals() - Initializes the peripherals
 XStatus init_peripherals(void)
 {
+	XStatus sts;
 
 	//***** INSERT YOUR PERIPHERAL INITIALIZATION CODE HERE ******//
+		// initialize the GPIO instances
+	    sts = XGpio_Initialize(&BTNInst, BTN_GPIO_DEVICEID);
+	    if (sts != XST_SUCCESS)
+	    {
+	    	return XST_FAILURE;
+	    }
+
+	    sts = XGpio_Initialize(&SWInst, SW_GPIO_DEVICEID);
+	    if (sts != XST_SUCCESS)
+	    {
+	      	return XST_FAILURE;
+	    }
+
+	    sts = XGpio_Initialize(&LEDInst, LED_GPIO_DEVICEID);
+	    if (sts != XST_SUCCESS)
+	    {
+	    	return XST_FAILURE;
+	    }
+
+	    // Initialize the XPS timer
+	    sts = XTmrCtr_Initialize(&TMRCTR1Inst, TMRCTR1_DEVICEID);
+	    if (sts != XST_SUCCESS)
+	    {
+	    	return XST_FAILURE;
+	    }
+
+	    // Initialize the WDT
+	    sts = XWdtTb_Initialize(&WDTInst, WDT_DEVICEID);
+	    if (sts != XST_SUCCESS)
+	    {
+	    	return XST_FAILURE;
+	    }
+
+
+	    WdtExpired = FALSE;
+
+
+	    // Enable the Microblaze caches and kick off the
+	    // processing by enabling the Microblaze interrupt.
+	    if (USE_ICACHE == 1)
+	    {
+	        microblaze_invalidate_icache();
+	        microblaze_enable_icache();
+	    }
+	    if (USE_DCACHE == 1)
+	    {
+	        microblaze_invalidate_dcache();
+	        microblaze_enable_dcache();
+	    }
+
+	    // Start the XPS timer
+	    XTmrCtr_Start(&TMRCTR1Inst, 0);
+
+	    // Enable GPIO interrupts both globally and for the channel it uses (channel 1)
+	    XGpio_InterruptEnable(&BTNInst, 1);
+	    XGpio_InterruptGlobalEnable(&BTNInst);
+
+	    microblaze_enable_interrupts();
 
 	return XST_SUCCESS;
 }
@@ -275,15 +352,70 @@ XStatus init_peripherals(void)
 void button_handler(void)
 {
 	//***** INSERT YOUR BUTTON PRESS INTERRUPT HANDLER CODE HERE *****//
+	xil_printf("BUTTON Thread: Button Pushed\r\n");
 
+	disable_interrupt(BTN_GPIO_INTR_NUM);
 	acknowledge_interrupt(BTN_GPIO_INTR_NUM);
 }
 
 // WDT interrupt handler
 void wdt_handler(void)
 {
+
 	//***** INSERT YOUR WATCHDOG TIMER INTERRUPT HANDLER CODE HERE *****//
+	if (system_running)
+	{
+		//Restart the WDT as a normal application would
+		XWdtTb_RestartWdt(&WDTInst);
+
+		xil_printf("WDT Handler: Tickle, Tickle\r\n");
+
+		// Reset the system_running flag
+		system_running = false;
+
+		WdtExpired = FALSE;
+	}
+	else
+	{
+		xil_printf("WDT Handler: First Timeout occurred, will reset CPU on next timeout\r\n");
+
+		/*
+		//Wait for the first expiration of the WDT
+		while (WdtExpired != TRUE);
+		WdtExpired = FALSE;
+
+		//Wait for the second expiration of the WDT
+		while (WdtExpired != TRUE);
+		WdtExpired = FALSE;
+
+
+		 * 	//Set the flag indicating that the WDT has expired
+			WdtExpired = TRUE;
+			 * Check whether the WatchDog Reset Status has been set.
+			 * If this is set means then the test has failed
+
+			if (XWdtTb_ReadReg(WdtTbInstancePtr->RegBaseAddress,
+					XWT_TWCSR0_OFFSET) & XWT_CSR0_WRS_MASK) {
+
+				 * Disable and disconnect the interrupt system
+
+				WdtTbDisableIntrSystem(IntcInstancePtr, WdtTbIntrId);
+
+
+				 * Stop the timer
+
+				XWdtTb_Stop(WdtTbInstancePtr);
+
+				return XST_FAILURE;*/
+	}
+
+
+
+	//Restart the WDT as a normal application would
+	XWdtTb_RestartWdt(&WDTInst);
 
 	acknowledge_interrupt(WDT_INTR_NUM);
+	//disable_interrupt(WDT_INTR_NUM);
+
 }
 
