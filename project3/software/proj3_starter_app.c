@@ -129,11 +129,17 @@ int main()
 	if (XWdtTb_IsWdtExpired(&WDTInst))
 	{
 	 	// it's true, the WDT expired.
-	 	//***** INSERT YOUR WDT RECOVERY CODE HERE ******//
+	 	//***** WDT RECOVERY CODE ******//
 
-		// Set the system_running flag ???????????????
-		system_running = true;
-		xil_printf("OH NOOOOOOOOOO\n\r");
+		xil_printf("\n..........RESET in PROGRESS..........\n\r");
+
+		sts = init_peripherals();
+		if (sts != XST_SUCCESS)
+		{
+		   xil_printf("FATAL ERROR: Could not initialize the peripherals\n\r");
+		   xil_printf("Please power cycle or reset the system\n\r");
+		   return -1;
+		}
 	}
 
     // Initialize xilkernel
@@ -286,7 +292,7 @@ XStatus init_peripherals(void)
 {
 	XStatus sts;
 
-	//***** INSERT YOUR PERIPHERAL INITIALIZATION CODE HERE ******//
+	//***** PERIPHERAL INITIALIZATION CODE ******//
 		// initialize the GPIO instances
 	    sts = XGpio_Initialize(&BTNInst, BTN_GPIO_DEVICEID);
 	    if (sts != XST_SUCCESS)
@@ -356,7 +362,6 @@ void button_handler(void)
 	// Disable the GPIO interrupt
 	XGpio_InterruptDisable(&BTNInst, 1);
 
-	system_running = true;
 	xil_printf("BUTTON Thread: Button Pushed\r\n");
 
 	//Clear the interrupt such that it is no longer pending in the GPIO
@@ -371,7 +376,7 @@ void button_handler(void)
 void wdt_handler(void)
 {
 
-	//***** INSERT YOUR WATCHDOG TIMER INTERRUPT HANDLER CODE HERE *****//
+	//***** WATCHDOG TIMER INTERRUPT HANDLER CODE *****//
 	if (system_running)
 	{
 		disable_interrupt(WDT_INTR_NUM);
@@ -388,32 +393,10 @@ void wdt_handler(void)
 	else
 	{
 		xil_printf("WDT Handler: First Timeout occurred, will reset CPU on next timeout\r\n");
+
 		// Reset the system_running flag
 		system_running = false;
-
-		/*
-
-
-		 * 	//Set the flag indicating that the WDT has expired
-			WdtExpired = TRUE;
-			 * Check whether the WatchDog Reset Status has been set.
-			 * If this is set means then the test has failed
-
-			if (XWdtTb_ReadReg(WdtTbInstancePtr->RegBaseAddress,
-					XWT_TWCSR0_OFFSET) & XWT_CSR0_WRS_MASK) {
-
-				 * Disable and disconnect the interrupt system
-
-				WdtTbDisableIntrSystem(IntcInstancePtr, WdtTbIntrId);
-
-
-				 * Stop the timer
-
-				XWdtTb_Stop(WdtTbInstancePtr);
-
-				return XST_FAILURE;*/
 	}
-
 
 	acknowledge_interrupt(WDT_INTR_NUM);
 
