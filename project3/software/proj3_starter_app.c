@@ -247,6 +247,8 @@ void* master_thread(void *arg)
 		//***** INSERT YOUR MASTER THREAD CODE HERE ******//
 		system_running = true;
 		enable_interrupt(BTN_GPIO_INTR_NUM);
+		XGpio_InterruptEnable(&BTNInst, 1);
+
 		enable_interrupt(WDT_INTR_NUM);
 
 	}
@@ -348,9 +350,20 @@ XStatus init_peripherals(void)
 void button_handler(void)
 {
 	//***** INSERT YOUR BUTTON PRESS INTERRUPT HANDLER CODE HERE *****//
+	// disable the interrupt
 	disable_interrupt(BTN_GPIO_INTR_NUM);
+
+	// Disable the GPIO interrupt
+	XGpio_InterruptDisable(&BTNInst, 1);
+
 	system_running = true;
 	xil_printf("BUTTON Thread: Button Pushed\r\n");
+
+	//Clear the interrupt such that it is no longer pending in the GPIO
+	(void)XGpio_InterruptClear(&BTNInst, 1);
+
+
+	// Acknowledge the interrupt
 	acknowledge_interrupt(BTN_GPIO_INTR_NUM);
 }
 
@@ -375,6 +388,8 @@ void wdt_handler(void)
 	else
 	{
 		xil_printf("WDT Handler: First Timeout occurred, will reset CPU on next timeout\r\n");
+		// Reset the system_running flag
+		system_running = false;
 
 		/*
 
