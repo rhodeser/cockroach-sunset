@@ -99,7 +99,7 @@ struct msqid_ds	led_msgstats;	// statistics from message queue
 sem_t btn_press_sema;			// semaphore between clock tick ISR and the clock main thread
 volatile u32 btn_state;			// button state - shared between button handler and button thread
 volatile bool system_running;	// used for tickling the WDT
-static volatile int WdtExpired;	// set when the WDT expires
+
 
 // Function declarations
 void* master_thread(void *arg);
@@ -133,7 +133,7 @@ int main()
 
 		// Set the system_running flag ???????????????
 		system_running = true;
-		xil_printf("WARNING: RECOVERED FROM RESET\n\r");
+		xil_printf("OH NOOOOOOOOOO\n\r");
 	}
 
     // Initialize xilkernel
@@ -245,10 +245,9 @@ void* master_thread(void *arg)
 	while(1)
 	{
 		//***** INSERT YOUR MASTER THREAD CODE HERE ******//
-		enable_interrupt(BTN_GPIO_INTR_NUM);
-		//enable_interrupt(WDT_INTR_NUM);
 		system_running = true;
-		//sleep(100);
+		enable_interrupt(BTN_GPIO_INTR_NUM);
+		enable_interrupt(WDT_INTR_NUM);
 
 	}
 	
@@ -320,9 +319,6 @@ XStatus init_peripherals(void)
 	    }
 
 
-	    WdtExpired = FALSE;
-
-
 	    // Enable the Microblaze caches and kick off the
 	    // processing by enabling the Microblaze interrupt.
 	    if (USE_ICACHE == 1)
@@ -352,9 +348,9 @@ XStatus init_peripherals(void)
 void button_handler(void)
 {
 	//***** INSERT YOUR BUTTON PRESS INTERRUPT HANDLER CODE HERE *****//
-	xil_printf("BUTTON Thread: Button Pushed\r\n");
-
 	disable_interrupt(BTN_GPIO_INTR_NUM);
+	system_running = true;
+	xil_printf("BUTTON Thread: Button Pushed\r\n");
 	acknowledge_interrupt(BTN_GPIO_INTR_NUM);
 }
 
@@ -365,6 +361,8 @@ void wdt_handler(void)
 	//***** INSERT YOUR WATCHDOG TIMER INTERRUPT HANDLER CODE HERE *****//
 	if (system_running)
 	{
+		disable_interrupt(WDT_INTR_NUM);
+
 		//Restart the WDT as a normal application would
 		XWdtTb_RestartWdt(&WDTInst);
 
@@ -373,20 +371,12 @@ void wdt_handler(void)
 		// Reset the system_running flag
 		system_running = false;
 
-		WdtExpired = FALSE;
 	}
 	else
 	{
 		xil_printf("WDT Handler: First Timeout occurred, will reset CPU on next timeout\r\n");
 
 		/*
-		//Wait for the first expiration of the WDT
-		while (WdtExpired != TRUE);
-		WdtExpired = FALSE;
-
-		//Wait for the second expiration of the WDT
-		while (WdtExpired != TRUE);
-		WdtExpired = FALSE;
 
 
 		 * 	//Set the flag indicating that the WDT has expired
@@ -410,12 +400,7 @@ void wdt_handler(void)
 	}
 
 
-
-	//Restart the WDT as a normal application would
-	XWdtTb_RestartWdt(&WDTInst);
-
 	acknowledge_interrupt(WDT_INTR_NUM);
-	//disable_interrupt(WDT_INTR_NUM);
 
 }
 
