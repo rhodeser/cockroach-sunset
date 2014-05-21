@@ -116,7 +116,9 @@ int main()
     XStatus sts;
 
     // initialize the platform and the peripherals
+    cleanup_platform();
     init_platform();
+
     sts = init_peripherals();
     if (sts != XST_SUCCESS)
     {
@@ -124,6 +126,7 @@ int main()
 		xil_printf("Please power cycle or reset the system\n\r");
 		return -1;
     }
+
 
 	// check if WDT expired and caused the reset - if so, don't start
 	if (XWdtTb_IsWdtExpired(&WDTInst))
@@ -226,7 +229,7 @@ void* master_thread(void *arg)
 	{
 		xil_printf ("MASTER: Button press semaphore has been initialized\n\r");
 	}
-	
+
 	// Register the interrupt handlers
     ret = register_int_handler(WDT_INTR_NUM, (void*) wdt_handler, NULL);
     if (ret != XST_SUCCESS)
@@ -251,14 +254,14 @@ void* master_thread(void *arg)
 	while(1)
 	{
 		//***** INSERT YOUR MASTER THREAD CODE HERE ******//
-		system_running = true;
+		//system_running = true;
 		enable_interrupt(BTN_GPIO_INTR_NUM);
 		XGpio_InterruptEnable(&BTNInst, 1);
 
 		enable_interrupt(WDT_INTR_NUM);
 
 	}
-	
+
 	return NULL;
 }
 
@@ -274,7 +277,7 @@ void* button_thread(void *arg)
 void* switches_thread(void *arg)
 {
 	//***** INSERT YOUR SWITCHES THREAD CODE HERE ******//
-	
+
 	return NULL;
 }
 
@@ -282,7 +285,7 @@ void* switches_thread(void *arg)
 void* leds_thread(void *arg)
 {
 	//***** INSERT YOUR LEDS THREAD CODE HERE ******//
-	
+
 	return NULL;
 }
 
@@ -325,20 +328,11 @@ XStatus init_peripherals(void)
 	    {
 	    	return XST_FAILURE;
 	    }
-
-
-	    // Enable the Microblaze caches and kick off the
-	    // processing by enabling the Microblaze interrupt.
-	    if (USE_ICACHE == 1)
+	    else if (sts == XST_DEVICE_IS_STARTED)
 	    {
-	        microblaze_invalidate_icache();
-	        microblaze_enable_icache();
+	    	xil_printf("WDT already started...\r\n");
 	    }
-	    if (USE_DCACHE == 1)
-	    {
-	        microblaze_invalidate_dcache();
-	        microblaze_enable_dcache();
-	    }
+
 
 	    // Start the XPS timer
 	    XTmrCtr_Start(&TMRCTR1Inst, 0);
@@ -362,7 +356,7 @@ void button_handler(void)
 	// Disable the GPIO interrupt
 	XGpio_InterruptDisable(&BTNInst, 1);
 
-	xil_printf("BUTTON Thread: Button Pushed\r\n");
+	xil_printf("BUTTON Handler: Button Pushed\r\n");
 
 	//Clear the interrupt such that it is no longer pending in the GPIO
 	(void)XGpio_InterruptClear(&BTNInst, 1);
@@ -401,4 +395,3 @@ void wdt_handler(void)
 	acknowledge_interrupt(WDT_INTR_NUM);
 
 }
-
