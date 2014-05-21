@@ -323,6 +323,8 @@ void* button_thread(void *arg)
 		if (ButtonsChanged != 0)
 		{
 			xil_printf("BUTTON Thread: btn_state has changed. State is %d\r\n", btn_state);
+
+			// TODO: SEND BUTTON STATE TO LEDS[7:4]
 		}
 		sleep(100);
 	}
@@ -349,6 +351,7 @@ void* switches_thread(void *arg)
 			force_crash = false;
 		}
 
+		// TODO: SEND SW STATE TO LEDS [3:0]
 		sleep(100);
 	}
 
@@ -361,6 +364,8 @@ void* leds_thread(void *arg)
 	//***** INSERT YOUR LEDS THREAD CODE HERE ******//
 	xil_printf("LEDS: We are ready\r\n");
 
+	// TODO: READ FROM MESSAGE QUEUE AND LIGHT LEDS
+	XGpio_DiscreteWrite(&LEDInst, 1, 0x3); // lights sw0 and sw1 (just for test)
 	return NULL;
 }
 
@@ -389,7 +394,7 @@ XStatus init_peripherals(void)
 	    {
 	    	return XST_FAILURE;
 	    }
-	    // Set data direction for LEDs
+	    XGpio_SetDataDirection(&LEDInst, 1, 0x00);
 
 	    // Initialize the XPS timer
 	    sts = XTmrCtr_Initialize(&TMRCTR1Inst, TMRCTR1_DEVICEID);
