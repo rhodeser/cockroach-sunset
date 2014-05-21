@@ -207,6 +207,8 @@ void* master_thread(void *arg)
     	xil_printf("MASTER: Button Thread Starting\r\n");
     }
 
+    sleep (100);
+
     ret = pthread_create (&switches, &attr, (void*) switches_thread, NULL);
     if (ret != 0)
     {
@@ -218,6 +220,7 @@ void* master_thread(void *arg)
     {
     	xil_printf("MASTER: Switches Thread Starting\r\n");
     }
+    sleep(100);
 
     ret = pthread_create (&leds, &attr, (void*) leds_thread, NULL);
     if (ret != 0)
@@ -230,6 +233,7 @@ void* master_thread(void *arg)
     {
     	xil_printf("MASTER: Leds Thread Starting\r\n");
     }
+    sleep(100);
 
     // initialize the button press semaphore
 	ret = sem_init (&btn_press_sema, 0, 0);
@@ -264,6 +268,7 @@ void* master_thread(void *arg)
 	XWdtTb_Start(&WDTInst);
 	xil_printf("MASTER: Watchdog timer has been started\r\n");
 
+
 	// master thread main loop
 	while(1)
 	{
@@ -274,6 +279,8 @@ void* master_thread(void *arg)
 
 		enable_interrupt(WDT_INTR_NUM);
 
+		sleep(100);
+
 	}
 
 	return NULL;
@@ -283,18 +290,25 @@ void* master_thread(void *arg)
 void* button_thread(void *arg)
 {
 	//***** INSERT YOUR BUTTON THREAD CODE HERE ******//
+	xil_printf("BUTTON: We have lift-off\r\n");
 	// NOT WORKING FOR NOW
 	u32 ButtonsChanged = 0;
 	static u32 PreviousButtons;
 
-	ButtonsChanged = btn_state ^ PreviousButtons;
-	PreviousButtons = btn_state;
+	while(1)
+	{
+		sem_wait(&btn_press_sema);
 
-	//if (ButtonsChanged != 0)
-	//{
-		xil_printf("BUTTON Thread: btn_state has changed. State is %d\r\n", btn_state);
-	//}
 
+		ButtonsChanged = btn_state ^ PreviousButtons;
+		PreviousButtons = btn_state;
+
+		if (ButtonsChanged != 0)
+		{
+			xil_printf("BUTTON Thread: btn_state has changed. State is %d\r\n", btn_state);
+		}
+		sleep(100);
+	}
 	return NULL;
 }
 
@@ -302,6 +316,7 @@ void* button_thread(void *arg)
 void* switches_thread(void *arg)
 {
 	//***** INSERT YOUR SWITCHES THREAD CODE HERE ******//
+	xil_printf("SWITCHES: online! \r\n");
 
 	return NULL;
 }
@@ -310,6 +325,7 @@ void* switches_thread(void *arg)
 void* leds_thread(void *arg)
 {
 	//***** INSERT YOUR LEDS THREAD CODE HERE ******//
+	xil_printf("LEDS: We are ready\r\n");
 
 	return NULL;
 }
@@ -390,6 +406,7 @@ void button_handler(void)
 		xil_printf("BUTTON Handler: Button Pushed\r\n");
 		btn_state = Buttons;
 		xil_printf("BUTTON Handler: Button state is %d\r\n", btn_state);
+		sem_post(&btn_press_sema);
 	}
 
 	//Clear the interrupt such that it is no longer pending in the GPIO
