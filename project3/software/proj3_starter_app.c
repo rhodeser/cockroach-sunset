@@ -3,7 +3,7 @@
  * Copyright (c) 2012, 2013, 2014, Portland State University by Roy Kravitz.  All rights reserved.
  *
  * Author:		Caren Zgheib
- * Date:		19-May-2014
+ * Date:		21-May-2014
  * Revision:	2.0
  *
  * Revision History:
@@ -12,6 +12,9 @@
  * 	16-May-2013		RK		Updated the program for Nexys3 board and revised homework 2 assignment
  *	12-May-2014		RK		Minor changes to ease support for both Nexys 3 and Nexys 4.  No functional changes
  *  19-May-2014		CZ		Edited the macros to match my implementation of the system and added the initialization code
+ *	20-May-2014		CZ		Added the WDT functionality and safe recovery
+ *	21-May-2014		CZ		Threads are alive and talking. Button state is shared between the interrupt handler and the button thread.
+ *							Switches thread working and setting the force crash flag. However, the switches are not being read correctly.
  *
  * 	Description:
  * 	------------
@@ -75,6 +78,9 @@
 #define USE_DCACHE				XPAR_MICROBLAZE_0_USE_DCACHE
 #define USE_DCACHE_WRITEBACK	XPAR_MICROBLAZE_DCACHE_USE_WRITEBACK
 
+// SW mask
+#define SW7_MSK					0x80
+
 // macro functions
 #define MIN(a, b)  				( ((a) <= (b)) ? (a) : (b) )
 #define MAX(a, b)  				( ((a) >= (b)) ? (a) : (b) )
@@ -99,6 +105,7 @@ struct msqid_ds	led_msgstats;	// statistics from message queue
 sem_t btn_press_sema;			// semaphore between clock tick ISR and the clock main thread
 volatile u32 btn_state;			// button state - shared between button handler and button thread
 volatile bool system_running;	// used for tickling the WDT
+volatile bool force_crash;			// force crash - shared between the switches thread and the master thread
 
 
 // Function declarations
@@ -187,6 +194,7 @@ void* master_thread(void *arg)
     xil_printf("MASTER: Master Thread Starting\r\n");
 
     system_running = true;
+    force_crash = false;
 
     // set the priority of all but the master thread to 1.  The master thread runs at priority 0
     // because it is responsible for tickling the WDT.
@@ -273,7 +281,15 @@ void* master_thread(void *arg)
 	while(1)
 	{
 		//***** INSERT YOUR MASTER THREAD CODE HERE ******//
-		system_running = true;
+		if (force_crash == false)
+		{
+			system_running = true;
+		}
+		else
+		{
+			system_running = false;
+		}
+
 		enable_interrupt(BTN_GPIO_INTR_NUM);
 		XGpio_InterruptEnable(&BTNInst, 1);
 
@@ -316,7 +332,26 @@ void* button_thread(void *arg)
 void* switches_thread(void *arg)
 {
 	//***** INSERT YOUR SWITCHES THREAD CODE HERE ******//
+	volatile u32 Switches;
 	xil_printf("SWITCHES: online! \r\n");
+
+	while (1)
+	{
+		Switches = XGpio_DiscreteRead(&SWInst, 1);
+		// It is not reading the switches for some reason :/
+
+		if(Switches & SW7_MSK)
+		{
+			force_crash = true;
+			xil_printf("SWITCHES Thread: force crash enabled\r\n");
+		}
+		else
+		{
+			force_crash = false;
+		}
+
+		sleep(2000);
+	}
 
 	return NULL;
 }
