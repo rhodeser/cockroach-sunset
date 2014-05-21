@@ -79,7 +79,7 @@
 #define USE_DCACHE_WRITEBACK	XPAR_MICROBLAZE_DCACHE_USE_WRITEBACK
 
 // SW mask
-#define SW7_MSK					0x80
+#define SW7_MSK					0x01
 
 // macro functions
 #define MIN(a, b)  				( ((a) <= (b)) ? (a) : (b) )
@@ -287,6 +287,7 @@ void* master_thread(void *arg)
 		}
 		else
 		{
+			xil_printf("MASTER: Force crash enabled\r\n");
 			system_running = false;
 		}
 
@@ -307,7 +308,7 @@ void* button_thread(void *arg)
 {
 	//***** INSERT YOUR BUTTON THREAD CODE HERE ******//
 	xil_printf("BUTTON: We have lift-off\r\n");
-	// NOT WORKING FOR NOW
+
 	u32 ButtonsChanged = 0;
 	static u32 PreviousButtons;
 
@@ -338,19 +339,17 @@ void* switches_thread(void *arg)
 	while (1)
 	{
 		Switches = XGpio_DiscreteRead(&SWInst, 1);
-		// It is not reading the switches for some reason :/
 
 		if(Switches & SW7_MSK)
 		{
 			force_crash = true;
-			xil_printf("SWITCHES Thread: force crash enabled\r\n");
 		}
 		else
 		{
 			force_crash = false;
 		}
 
-		sleep(2000);
+		sleep(100);
 	}
 
 	return NULL;
@@ -390,6 +389,7 @@ XStatus init_peripherals(void)
 	    {
 	    	return XST_FAILURE;
 	    }
+	    // Set data direction for LEDs
 
 	    // Initialize the XPS timer
 	    sts = XTmrCtr_Initialize(&TMRCTR1Inst, TMRCTR1_DEVICEID);
