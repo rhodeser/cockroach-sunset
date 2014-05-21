@@ -202,6 +202,11 @@ void* master_thread(void *arg)
     	xil_printf("FATAL ERROR: Master Thread Terminating\r\n");
     	return (void*) -3;
     }
+    else
+    {
+    	xil_printf("MASTER: Button Thread Starting\r\n");
+    }
+
     ret = pthread_create (&switches, &attr, (void*) switches_thread, NULL);
     if (ret != 0)
     {
@@ -209,12 +214,21 @@ void* master_thread(void *arg)
     	xil_printf("FATAL ERROR: Master Thread Terminating\r\n");
     	return (void*) -3;
     }
+    else
+    {
+    	xil_printf("MASTER: Switches Thread Starting\r\n");
+    }
+
     ret = pthread_create (&leds, &attr, (void*) leds_thread, NULL);
     if (ret != 0)
     {
     	xil_printf("ERROR (%d) IN MASTER THREAD: could not launch %s\r\n", ret, "switches thread");
     	xil_printf("FATAL ERROR: Master Thread Terminating\r\n");
     	return (void*) -3;
+    }
+    else
+    {
+    	xil_printf("MASTER: Leds Thread Starting\r\n");
     }
 
     // initialize the button press semaphore
@@ -254,7 +268,7 @@ void* master_thread(void *arg)
 	while(1)
 	{
 		//***** INSERT YOUR MASTER THREAD CODE HERE ******//
-		//system_running = true;
+		system_running = true;
 		enable_interrupt(BTN_GPIO_INTR_NUM);
 		XGpio_InterruptEnable(&BTNInst, 1);
 
@@ -269,6 +283,17 @@ void* master_thread(void *arg)
 void* button_thread(void *arg)
 {
 	//***** INSERT YOUR BUTTON THREAD CODE HERE ******//
+	// NOT WORKING FOR NOW
+	u32 ButtonsChanged = 0;
+	static u32 PreviousButtons;
+
+	ButtonsChanged = btn_state ^ PreviousButtons;
+	PreviousButtons = btn_state;
+
+	//if (ButtonsChanged != 0)
+	//{
+		xil_printf("BUTTON Thread: btn_state has changed. State is %d\r\n", btn_state);
+	//}
 
 	return NULL;
 }
@@ -350,13 +375,22 @@ XStatus init_peripherals(void)
 void button_handler(void)
 {
 	//***** INSERT YOUR BUTTON PRESS INTERRUPT HANDLER CODE HERE *****//
+	u32 Buttons;
+
 	// disable the interrupt
 	disable_interrupt(BTN_GPIO_INTR_NUM);
 
 	// Disable the GPIO interrupt
 	XGpio_InterruptDisable(&BTNInst, 1);
 
-	xil_printf("BUTTON Handler: Button Pushed\r\n");
+
+	Buttons = XGpio_DiscreteRead(&BTNInst, 1);
+	if (Buttons != 0)
+	{
+		xil_printf("BUTTON Handler: Button Pushed\r\n");
+		btn_state = Buttons;
+		xil_printf("BUTTON Handler: Button state is %d\r\n", btn_state);
+	}
 
 	//Clear the interrupt such that it is no longer pending in the GPIO
 	(void)XGpio_InterruptClear(&BTNInst, 1);
