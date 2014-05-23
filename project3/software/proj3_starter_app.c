@@ -1,9 +1,9 @@
-/* proj3_starter_app - ECE 544 Project #3 Application template
+/* proj3_starter_app - ECE 544 Project 3
  *
- * Copyright (c) 2012, 2013, 2014, Portland State University by Roy Kravitz.  All rights reserved.
+ * Copyright (c) 2012, 2013, 2014, Portland State University by Caren Zgheib.  All rights reserved.
  *
  * Author:		Caren Zgheib
- * Date:		21-May-2014
+ * Date:		23-May-2014
  * Revision:	2.0
  *
  * Revision History:
@@ -14,7 +14,8 @@
  *  19-May-2014		CZ		Edited the macros to match my implementation of the system and added the initialization code
  *	20-May-2014		CZ		Added the WDT functionality and safe recovery
  *	21-May-2014		CZ		Threads are alive and talking. Button state is shared between the interrupt handler and the button thread.
- *							Switches thread working and setting the force crash flag. However, the switches are not being read correctly.
+ *							Switches thread working and setting the force crash flag. LEDs thread working.
+ *	23-May-2014		CZ		Added message queues and completed the project.
  *
  * 	Description:
  * 	------------
@@ -29,7 +30,11 @@
  * 	the semaphore and then enters a main loop where it wakes up periodically to reset the WDT.  Status messages are sent
  * 	via STDOUT through the USB serial port which can be connected to a PC running a terminal emulator such as putty.
  *
- * <your additional comments>
+ * We did not add new functionality to the application.
+ *  - Really cool project (at least in my opinion) -
+ *
+ * Note: This is a deliverable for both Erik Rhodes and Caren Zgheib. Even though Erik did not write any code, this is how we decided
+ * to split the work. He started working on the final project while I focused on this project.
  *
  */
 
@@ -59,6 +64,7 @@
 #include "xstatus.h"
 
 
+
 // Declarations
 #define BTN_GPIO_DEVICEID		XPAR_PUSH_BUTTONS_4BITS_DEVICE_ID
 #define SW_GPIO_DEVICEID		XPAR_XPS_GPIO_0_DEVICE_ID
@@ -79,7 +85,23 @@
 #define USE_DCACHE_WRITEBACK	XPAR_MICROBLAZE_DCACHE_USE_WRITEBACK
 
 // SW mask
-#define SW7_MSK					0x01
+#define SW7						0x80
+
+// Button masks
+#define BTNU					1
+#define BTNL					2
+#define BTND					4
+#define BTNR					8
+
+// LED masks
+#define LED7					0x80
+#define LED6					0x40
+#define LED5					0x20
+#define LED4					0x10
+#define LED3					0x08
+#define LED2					0x04
+#define LED1					0x02
+#define LED0					0x01
 
 // macro functions
 #define MIN(a, b)  				( ((a) <= (b)) ? (a) : (b) )
@@ -98,6 +120,10 @@ typedef struct					// LED message definition
 	int msg_value;
 } t_LED_message, *t_LED_messageptr;
 
+// macros for message sources
+#define SRC_BUTTONS			1
+#define SRC_SWITCHES		2
+
 const int led_msg_key = 1;		// message key for LED message queue
 struct msqid_ds	led_msgstats;	// statistics from message queue
 
@@ -105,7 +131,7 @@ struct msqid_ds	led_msgstats;	// statistics from message queue
 sem_t btn_press_sema;			// semaphore between clock tick ISR and the clock main thread
 volatile u32 btn_state;			// button state - shared between button handler and button thread
 volatile bool system_running;	// used for tickling the WDT
-volatile bool force_crash;			// force crash - shared between the switches thread and the master thread
+volatile bool force_crash;		// force crash - shared between the switches thread and the master thread
 
 
 // Function declarations
@@ -181,7 +207,7 @@ void* master_thread(void *arg)
     int ret;
 
     xil_printf("----------------------------------------------------------------------------\r\n");
-    xil_printf("ECE 544 Project 3 Starter Application \r\n");
+    xil_printf("\t\t\tECE 544 Project 3  \r\n");
     xil_printf("----------------------------------------------------------------------------\r\n");
     xil_printf("This Xilkernel based application reads the buttons and switches on the FPGA \r\n"
                "development board and displays them on the LEDs.  Even though the application is\r\n"
@@ -280,7 +306,6 @@ void* master_thread(void *arg)
 	// master thread main loop
 	while(1)
 	{
-		//***** INSERT YOUR MASTER THREAD CODE HERE ******//
 		if (force_crash == false)
 		{
 			system_running = true;
@@ -306,27 +331,48 @@ void* master_thread(void *arg)
 // The button thread
 void* button_thread(void *arg)
 {
-	//***** INSERT YOUR BUTTON THREAD CODE HERE ******//
-	xil_printf("BUTTON: We have lift-off\r\n");
+	//***** BUTTON THREAD CODE ******//
+	xil_printf("BUTTON Thread: We have lift-off\r\n");
 
-	u32 ButtonsChanged = 0;
-	static u32 PreviousButtons;
+	int msgid;							// Message ID
+	t_LED_message message_from_b;		// Message from the buttons
+
+	// open the message queue
+	msgid = msgget (led_msg_key, IPC_CREAT ) ;
+
+	if (msgid == -1)
+	{
+		xil_printf("BUTTON Thread: *** ERROR while opening message queue. Errno: %d\r\n",errno);
+	}
+
+	message_from_b.msg_src = SRC_BUTTONS;
 
 	while(1)
 	{
+		// Wait for the button press
 		sem_wait(&btn_press_sema);
 
 
-		ButtonsChanged = btn_state ^ PreviousButtons;
-		PreviousButtons = btn_state;
-
-		if (ButtonsChanged != 0)
+		if (btn_state != 0)
 		{
 			xil_printf("BUTTON Thread: btn_state has changed. State is %d\r\n", btn_state);
 
-			// TODO: SEND BUTTON STATE TO LEDS[7:4]
+			// SEND BUTTON STATE TO LEDS[7:4]
+			message_from_b.msg_value = (int)btn_state;
+			if (msgsnd(msgid, &message_from_b, 8 ,0) < 0) // Blocking send
+			{
+				xil_printf("BUTTON Thread: *** msgsnd ran into ERROR. Errno: %d.\r\n", errno);
+			}
 		}
-		sleep(100);
+
+		sleep(200);
+
+		// SEND 0 to clear the LED
+		message_from_b.msg_value = 0;
+		if (msgsnd(msgid, &message_from_b, 8 ,0) < 0) // Blocking send
+		{
+			xil_printf("BUTTON Thread: *** msgsnd ran into ERROR. Errno: %d.\r\n", errno);
+		}
 	}
 	return NULL;
 }
@@ -334,24 +380,45 @@ void* button_thread(void *arg)
 // The switches thread
 void* switches_thread(void *arg)
 {
-	//***** INSERT YOUR SWITCHES THREAD CODE HERE ******//
+	//***** SWITCHES THREAD CODE ******//
 	volatile u32 Switches;
-	xil_printf("SWITCHES: online! \r\n");
+	int msgid;						// Message ID
+	t_LED_message message_from_s;	// Message from the switches
+
+	xil_printf("SWITCHES Thread: online! \r\n");
+
+	// open the message queue
+	msgid = msgget (led_msg_key, IPC_CREAT ) ;
+
+	if (msgid == -1)
+	{
+		xil_printf("SWITCHES Thread: *** ERROR while opening message queue. Errno: %d\r\n",errno);
+	}
+
+	message_from_s.msg_src = SRC_SWITCHES;
 
 	while (1)
 	{
 		Switches = XGpio_DiscreteRead(&SWInst, 1);
 
-		if(Switches & SW7_MSK)
+		if(Switches & SW7)
 		{
 			force_crash = true;
 		}
 		else
 		{
+			// SEND SW STATE TO LEDS [3:0]
 			force_crash = false;
+
+			message_from_s.msg_value = (int)Switches;
+
+			if (msgsnd(msgid, &message_from_s, 8 ,0) < 0) // Blocking send
+			{
+				xil_printf("SWITCHES Thread: *** msgsnd ran into ERROR. Errno: %d.\r\n", errno);
+			}
+
 		}
 
-		// TODO: SEND SW STATE TO LEDS [3:0]
 		sleep(100);
 	}
 
@@ -361,11 +428,74 @@ void* switches_thread(void *arg)
 // The leds thread
 void* leds_thread(void *arg)
 {
-	//***** INSERT YOUR LEDS THREAD CODE HERE ******//
-	xil_printf("LEDS: We are ready\r\n");
+	//***** LEDS THREAD CODE ******//
+	xil_printf("LEDS Thread: We are ready\r\n");
 
-	// TODO: READ FROM MESSAGE QUEUE AND LIGHT LEDS
-	XGpio_DiscreteWrite(&LEDInst, 1, 0x3); // lights sw0 and sw1 (just for test)
+	int msgid;							// Message ID
+	static u32 button_value = 0;		// button value to be displayed on the LEDS
+	static u32 switch_value = 0; 		// switch value to be displayed on the LEDS
+
+	t_LED_message msg_to_read;
+
+	// open the message queue
+	msgid = msgget (led_msg_key, IPC_CREAT ) ;
+
+	if (msgid == -1)
+	{
+		xil_printf("LEDS Thread: *** ERROR while opening message queue. Errno: %d\r\n",errno);
+	}
+
+	while (1)
+	{
+		// Read from the message queue and light the LEDs
+		if(msgrcv(msgid, &msg_to_read, 8, 0, 0) != 8) // Blocking receive
+			{
+				xil_printf("LEDS Thread: *** msgrcv ran into ERROR. Errno: %d.\r\n", errno);
+			}
+		else
+		{
+			switch (msg_to_read.msg_src)
+			{
+				case SRC_BUTTONS:		// Lights LEDS[7:4] depending on the button
+					if (msg_to_read.msg_value == BTNU)
+					{
+						button_value = LED7;
+					}
+					else if (msg_to_read.msg_value == BTNL)
+					{
+						button_value = LED6;
+					}
+					else if (msg_to_read.msg_value == BTND)
+					{
+						button_value = LED5;
+					}
+					else if (msg_to_read.msg_value == BTNR)
+					{
+						button_value = LED4;
+					}
+					else
+					{
+						button_value = 0;
+					}
+				break;
+
+				case SRC_SWITCHES:		// Light LEDS[3:0] depending on the switch
+					if (msg_to_read.msg_value < (0x10))
+					{
+						switch_value = msg_to_read.msg_value;
+					}
+				break;
+
+				default:
+					button_value = 0;
+					switch_value = 0;
+				break;
+			}
+
+			XGpio_DiscreteWrite(&LEDInst, 1, (button_value | switch_value));
+		}
+	}
+
 	return NULL;
 }
 
@@ -430,7 +560,7 @@ XStatus init_peripherals(void)
 // button press interrupt handler
 void button_handler(void)
 {
-	//***** INSERT YOUR BUTTON PRESS INTERRUPT HANDLER CODE HERE *****//
+	//***** BUTTON PRESS INTERRUPT HANDLER CODE *****//
 	u32 Buttons;
 
 	// disable the interrupt
